@@ -1,0 +1,24 @@
+{
+  "name": "@samar/providers",
+  "version": "0.1.0",
+  "description": "External provider integrations for Samar-Minime Systems",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "lint": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@samar/config": "workspace:*",
+    "@samar/observability": "workspace:*",
+    "@samar/schemas": "workspace:*",
+    "openai": "^4.52.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "vitest": "^1.6.0"
+  }
+}

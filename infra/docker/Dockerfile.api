@@ -1,0 +1,20 @@
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+COPY packages ./packages
+
+# Install dependencies
+RUN npm ci
+
+# Copy application code
+COPY . .
+
+# Build application
+RUN npm run build --workspaces --if-present
+
+EXPOSE 3000
+
+CMD ["npm", "run", "start:api"]

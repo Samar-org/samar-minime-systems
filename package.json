@@ -1,0 +1,37 @@
+{
+  "name": "samar-minime-systems",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Samar-Minime Systems — Multi-Agent AI Operating System",
+  "license": "UNLICENSED",
+  "workspaces": [
+    "apps/*",
+    "platform/*",
+    "modules/*",
+    "projects/*"
+  ],
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "test": "turbo run test",
+    "lint": "turbo run lint",
+    "clean": "turbo run clean",
+    "db:generate": "turbo run db:generate --filter=@samar/database",
+    "db:migrate": "turbo run db:migrate --filter=@samar/database",
+    "db:seed": "turbo run db:seed --filter=@samar/database",
+    "docker:up": "docker compose -f infra/docker/docker-compose.yml up -d",
+    "docker:down": "docker compose -f infra/docker/docker-compose.yml down",
+    "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\""
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "prettier": "^3.2.0",
+    "turbo": "^2.0.0",
+    "typescript": "^5.4.0",
+    "vitest": "^1.6.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "packageManager": "npm@10.0.0"
+}

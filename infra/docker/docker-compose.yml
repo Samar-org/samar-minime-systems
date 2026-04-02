@@ -1,0 +1,73 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: samar_postgres
+    environment:
+      POSTGRES_USER: samar
+      POSTGRES_PASSWORD: samar_dev
+      POSTGRES_DB: samar_minime
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - samar_network
+
+  redis:
+    image: redis:7-alpine
+    container_name: samar_redis
+    ports:
+      - "6379:6379"
+    networks:
+      - samar_network
+
+  api:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.api
+    container_name: samar_api
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgresql://samar:samar_dev@postgres:5432/samar_minime
+      REDIS_URL: redis://redis:6379
+      NODE_ENV: development
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - samar_network
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.dashboard
+    container_name: samar_dashboard
+    ports:
+      - "80:80"
+    networks:
+      - samar_network
+
+  worker:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.worker
+    container_name: samar_worker
+    environment:
+      DATABASE_URL: postgresql://samar:samar_dev@postgres:5432/samar_minime
+      REDIS_URL: redis://redis:6379
+      NODE_ENV: development
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - samar_network
+
+volumes:
+  postgres_data:
+
+networks:
+  samar_network:
+    driver: bridge

@@ -1,0 +1,42 @@
+# ============================================================================
+# Samar-Minime Llama Fleet — Prometheus Configuration
+# ============================================================================
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  scrape_timeout: 10s
+
+scrape_configs:
+  # ── Llama Fleet API Gateway ────────────────────────────────────────────────
+  - job_name: "llama-fleet-api"
+    static_configs:
+      - targets: ["llama-api:8080"]
+    metrics_path: /metrics
+    scrape_interval: 10s
+
+  # ── vLLM 8B Inference Server ───────────────────────────────────────────────
+  - job_name: "vllm-8b"
+    static_configs:
+      - targets: ["vllm-8b:8000"]
+    metrics_path: /metrics
+    scrape_interval: 15s
+
+  # ── vLLM 70B Inference Server ──────────────────────────────────────────────
+  - job_name: "vllm-70b"
+    static_configs:
+      - targets: ["vllm-70b:8001"]
+    metrics_path: /metrics
+    scrape_interval: 15s
+
+  # ── Node Exporter (if running on host) ─────────────────────────────────────
+  - job_name: "node"
+    static_configs:
+      - targets: ["host.docker.internal:9100"]
+    scrape_interval: 30s
+
+  # ── NVIDIA GPU Exporter (if dcgm-exporter running) ─────────────────────────
+  - job_name: "gpu"
+    static_configs:
+      - targets: ["host.docker.internal:9400"]
+    scrape_interval: 15s

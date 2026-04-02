@@ -1,97 +1,105 @@
-import { RoutingRequest, RoutingDecision } from '@samar/schemas';
-import { ModelRegistry, ModelMetadata } from './model-registry';
-import { getLogger } from '@samar/observability';
+import type { RoutingRequest, RoutingDecision, ModelSpec } from '@samar/schemas';
+import { MODEL_REGISTRY } from './model-registry.js';
 
-const logger = getLogger('model-router');
+const TIER_PRIORITY: Record<string, number> = {
+  UTILITY: 0,
+  BUILDER: 1,
+  DIRECTOR: 2,
+  SPECIALIST: 3,
+};
+
+const TIER_ORDER = ['UTILITY', 'BUILDER', 'DIRECTOR', 'SPECIALIST'] as const;
 
 export class ModelRouter {
-  private registry: ModelRegistry;
+  private registry: ModelSpec[];
 
-  constructor(registry: ModelRegistry) {
-    this.registry = registry;
+  constructor(registry: ModelSpec[] = MODEL_REGISTRY) {
+    this.registry = registry.filter(m => m.enabled);
   }
 
-  selectModel(request: RoutingRequest): RoutingDecision {
-    logger.info(`Selecting model for: ${request.taskDescription}`);
+  route(request: RoutingRequest): RoutingDecision {
+    const minTier = request.requiredTier
+      ? TIER_PRIORITY[request.requiredTier] ?? 0
+      : 0;
 
-    const candidates = this.registry.list();
+    // Escalation: each retry bumps the minimum tier
+    const escalatedTier = Math.min(minTier + request.retryCount, 3);
+    const effectiveTier = TIER_ORDER[escalatedTier] ?? 'SPECIALIST';
 
-    // Filter by constraints
-    let filtered = candidates.filter(m => {
-      if (request.constraints?.maxTokens && m.contextWindow < request.constraints.maxTokens) {
-        return false;
-      }
-      if (request.constraints?.maxCost && m.basePrice > request.constraints.maxCost) {
-        return false;
-      }
-      if (request.constraints?.requiredFormat && !m.supportedFormats.includes(request.constraints.requiredFormat)) {
-        return false;
-      }
+    // Filter eligible models
+    let candidates = this.registry.filter(m => {
+      const tierLevel = TIER_PRIORITY[m.tier] ?? 0;
+      if (tierLevel < (TIER_PRIORITY[effectiveTier] ?? 0)) return false;
+      if (request.requiresJson && !m.supportsJson) return false;
+      if (request.requiresVision && !m.supportsVision) return false;
+      if (request.preferredProvider && m.provider !== request.preferredProvider) return false;
       return true;
     });
 
-    if (filtered.length === 0) {
-      throw new Error('No models available matching constraints');
+    // If no candidates with preferred provider, remove that constraint
+    if (candidates.length === 0 && request.preferredProvider) {
+      candidates = this.registry.filter(m => {
+        const tierLevel = TIER_PRIORITY[m.tier] ?? 0;
+        if (tierLevel < (TIER_PRIORITY[effectiveTier] ?? 0)) return false;
+        if (request.requiresJson && !m.supportsJson) return false;
+        if (request.requiresVision && !m.supportsVision) return false;
+        return true;
+      });
     }
 
-    // Select based on cost optimization
-    let selected: ModelMetadata;
-    if (request.constraints?.maxCost) {
-      // Budget-conscious: pick foundation tier
-      selected = filtered.find(m => m.tier === 'foundation') || filtered[0];
-    } else {
-      // Default: pick standard tier for balance
-      selected = filtered.find(m => m.tier === 'standard') || filtered[0];
+    // Sort by cost (cheapest first within eligible tier)
+    candidates.sort((a, b) => {
+      const tierDiff = (TIER_PRIORITY[a.tier] ?? 0) - (TIER_PRIORITY[b.tier] ?? 0);
+      if (tierDiff !== 0) return tierDiff;
+      const costA = a.costPerInputToken + a.costPerOutputToken;
+      const costB = b.costPerInputToken + b.costPerOutputToken;
+      return costA - costB;
+    });
+
+    const selected = candidates[0];
+    if (!selected) {
+      throw new Error(`No eligible model found for request: ${JSON.stringify(request)}`);
     }
 
-    const estimatedCost = this.estimateCost(selected, request);
+    const estimatedTokens = 2000;
+    const estimatedCost = (selected.costPerInputToken * estimatedTokens) + (selected.costPerOutputToken * estimatedTokens);
 
-    logger.info(`Selected: ${selected.model} (estimated cost: $${estimatedCost})`);
+    // Budget check
+    if (request.maxCostUsd && estimatedCost > request.maxCostUsd) {
+      // Try to find a cheaper model
+      const cheaper = candidates.find(m => {
+        const cost = (m.costPerInputToken + m.costPerOutputToken) * estimatedTokens;
+        return cost <= (request.maxCostUsd ?? Infinity);
+      });
+
+      if (cheaper) {
+        return {
+          model: cheaper,
+          reason: `Budget-constrained: selected ${cheaper.name} (${cheaper.tier}) within $${request.maxCostUsd} limit`,
+          estimatedCostUsd: (cheaper.costPerInputToken + cheaper.costPerOutputToken) * estimatedTokens,
+          escalated: false,
+        };
+      }
+    }
+
+    const escalated = request.retryCount > 0 && effectiveTier !== TIER_ORDER[minTier];
 
     return {
-      model: selected.model,
-      provider: selected.provider,
-      tier: selected.tier,
-      estimatedCost,
-      contextWindow: selected.contextWindow,
+      model: selected,
+      reason: escalated
+        ? `Escalated to ${selected.name} (${selected.tier}) after ${request.retryCount} retries`
+        : `Selected ${selected.name} (${selected.tier}) — cheapest eligible model`,
+      estimatedCostUsd: estimatedCost,
+      escalated,
+      escalationReason: escalated ? `Retry #${request.retryCount}: previous tier insufficient` : undefined,
     };
   }
 
-  estimateCost(
-    model: ModelMetadata,
-    request: RoutingRequest
-  ): number {
-    // Rough estimate: assume 1000 input tokens + 500 output tokens
-    const inputTokens = 1000;
-    const outputTokens = 500;
-
-    const inputCost = (inputTokens / 1000000) * model.inputCostPer1M;
-    const outputCost = (outputTokens / 1000000) * model.outputCostPer1M;
-
-    return inputCost + outputCost + model.basePrice;
+  getModelsForTier(tier: string): ModelSpec[] {
+    return this.registry.filter(m => m.tier === tier);
   }
 
-  canHandle(
-    model: ModelMetadata,
-    request: RoutingRequest
-  ): boolean {
-    if (request.constraints?.maxTokens && model.contextWindow < request.constraints.maxTokens) {
-      return false;
-    }
-    if (request.constraints?.requiredFormat && !model.supportedFormats.includes(request.constraints.requiredFormat)) {
-      return false;
-    }
-    return true;
-  }
-
-  getAlternatives(
-    model: string,
-    request: RoutingRequest
-  ): ModelMetadata[] {
-    const candidates = this.registry.list();
-    return candidates
-      .filter(m => m.model !== model && this.canHandle(m, request))
-      .sort((a, b) => a.basePrice - b.basePrice)
-      .slice(0, 3);
+  getModelById(id: string): ModelSpec | undefined {
+    return this.registry.find(m => m.id === id);
   }
 }

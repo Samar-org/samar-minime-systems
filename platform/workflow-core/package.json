@@ -1,0 +1,25 @@
+{
+  "name": "@samar/workflow-core",
+  "version": "0.1.0",
+  "description": "Workflow engine and orchestration for Samar-Minime Systems",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "lint": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@samar/config": "workspace:*",
+    "@samar/database": "workspace:*",
+    "@samar/schemas": "workspace:*",
+    "@temporalio/client": "^1.10.0",
+    "@temporalio/workflow": "^1.10.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "vitest": "^1.6.0"
+  }
+}

@@ -47,140 +47,47 @@ Total: 426 lines of TypeScript
 ### Llama Adapter (`llama/adapter.ts`)
 - OpenAI-compatible API client
 - Works with any Llama-based inference server
-- Configurable baseURL for flexibility
-- Fallback ID generation when provider doesn't return ID
-- Same interface as OpenAI adapter
+- Configurable baseUrl for any OpenAI-compatible provider
+- Token counting via `js-tiktoken` library
 
 ## Module 2: Routing (`platform/routing/src/`)
 
 ### Model Registry (`model-registry.ts`)
-8 production models organized in 4 tiers:
+- Centralized catalog of 18+ available models across 3 providers
+- Models grouped by tier: `foundation` (fastest, cheapest), `standard` (balanced), `advanced` (most capable)
+- Metadata tracked per model: basePrice, inputCostPer1M, outputCostPer1M, contextWindow, supportedFormats
+- Registry methods:
+  - `register()` - add/update models
+  - `getModel()` - fetch single model config
+  - `getModelsByProvider()` - filter by provider
+  - `getModelsByTier()` - filter by capability tier
+  - `list()` - all models
 
-**UTILITY Tier** (cheapest, general tasks):
-- gpt-3.5-turbo: $0.0000005/$0.0000015 per token
-- llama-3.1-8b: Free (self-hosted)
-
-**BUILDER Tier** (code, analysis, structured output):
-- gpt-4o-mini: $0.00000015/$0.0000006 per token
-- llama-3.1-70b: Free
-
-**DIRECTOR Tier** (strategy, architecture, complex reasoning):
-- gpt-4o: $0.0000025/$0.00001 per token
-- claude-sonnet: $0.000003/$0.000015 per token
-
-**SPECIALIST Tier** (deep analysis, edge cases):
-- claude-opus: $0.000015/$0.000075 per token
-- o1: $0.000015/$0.00006 per token
-
-All models support JSON output. Vision models: GPT-4o, claude-sonnet, claude-opus, o1.
-
-### Routing Engine (`router.ts`)
-
-**ModelRouter class** implements intelligent model selection:
-
-1. **Tier-based Selection**
-   - Start with requested tier (UTILITY by default)
-   - Escalate on retry (each retry bumps to next tier)
-   - Automatic fallback to SPECIALIST if needed
-
-2. **Cost Optimization**
-   - Sort candidates by cost within same tier
-   - Budget constraints respected
-   - Fallback to cheaper model if budget exceeded
-
-3. **Capability Matching**
-   - JSON output requirement filtering
-   - Vision capability requirement filtering
-   - Provider preference (fallback if no matches)
-
-4. **Smart Escalation**
-   - Retries automatically bump tier for better results
-   - Tracks escalation reason in response
-   - Prevents re-routing to same tier after retry
-
-5. **Public Methods**
-   - `route(request)` - returns RoutingDecision with model selection
-   - `getModelsForTier(tier)` - introspection support
-   - `getModelById(id)` - direct model lookup
-
-## Design Patterns
-
-### Adapter Pattern
-Each provider (OpenAI, Claude, Llama) implements the same ProviderAdapter interface, enabling:
-- Transparent provider switching
-- Pluggable new providers
-- Consistent error handling
-- Unified response format
-
-### Strategy Pattern
-ModelRouter uses different selection strategies based on:
-- Requirements (JSON, vision)
-- Budget constraints
-- Tier escalation
-- Provider preferences
-
-### Registry Pattern
-MODEL_REGISTRY is a static model catalog enabling:
-- Cost visibility
-- Capability queries
-- Easy model enabling/disabling
-- Multi-version support
+### Router (`router.ts`)
+- Intelligent model selection engine
+- Selection strategy: based on cost, capability, context window, latency targets
+- Methods:
+  - `selectModel()` - pick best model for a request
+  - `estimateCost()` - predict token usage + pricing before execution
+  - `canHandle()` - check if model supports request constraints (context, format)
+  - `getAlternatives()` - suggest fallback models if primary fails
+- Constraints-based selection: respects maxCost, maxLatency, requiredFormat, minContextWindow
 
 ## Integration Points
 
-### Required External Types (from @samar/schemas)
-```typescript
-ModelSpec = {
-  id, provider, name, tier, costPerInputToken, costPerOutputToken,
-  maxTokens, supportsJson, supportsVision, enabled
-}
+1. **With Config System** (`platform/config`)
+   - Reads provider API keys from environment
+   - Model registry populated from config on startup
 
-RoutingRequest = {
-  requiredTier?, retryCount, requiresJson?, requiresVision?,
-  preferredProvider?, maxCostUsd?
-}
+2. **With Schemas** (`platform/schemas`)
+   - Zod schemas for CompletionRequest/Response validation
+   - Enum ModelSpec used in RoutingRequest/RoutingDecision
 
-RoutingDecision = {
-  model: ModelSpec, reason: string, estimatedCostUsd: number,
-  escalated: boolean, escalationReason?: string
-}
-```
+3. **With Observability** (`platform/observability`)
+   - Cost tracking integrated into router
+   - Token usage logged to metrics system
+   - Latency recorded per request
 
-### Environment Requirements
-- OpenAI: OPENAI_API_KEY
-- Claude: ANTHROPIC_API_KEY
-- Llama: Accessible inference server at configured baseURL
-
-## Next Steps
-
-1. **Implement Provider Factory**
-   - Instantiate adapters from environment variables
-   - Cache adapter instances
-   - Health check endpoints
-
-2. **Add to Application**
-   - Integrate ModelRouter into agent framework
-   - Wire requests through router before calling adapters
-   - Log routing decisions for analytics
-
-3. **Extend Model Registry**
-   - Add Claude 3 models when available
-   - Add new open-source models as needed
-   - Track performance metrics per model
-
-4. **Observability**
-   - Log model selections and reasons
-   - Track cost per agent/project
-   - Monitor adapter health and latency
-   - Alert on budget thresholds
-
-## Files Created
-
-1. `C:\Users\Admin\Samar-Minime Systems/samar-minime-systems/platform/providers/src/types.ts`
-2. `C:\Users\Admin\Samar-Minime Systems/samar-minime-systems/platform/providers/src/index.ts`
-3. `C:\Users\Admin\Samar-Minime Systems/samar-minime-systems/platform/providers/src/openai/adapter.ts`
-4. `C:\Users\Admin\Samar-Minime Systems/samar-minime-systems/platform/llama/adapter.ts`
-5. `C:\Users\Admin\Samar-Minime Systems/samar-minime-systems/platform/providers/src/claude/adapter.ts`
-6. `C:\Users\Admin\Samar-Minime Systems/samar-minime-systems/platform/routing/src/model-registry.ts`
-7. `C:\Users\Admin\Samar-Minime Systems/samar-minime-systems/platform/routing/src/router.ts`
-8. `C:\Users\Admin\Samar-Minime Systems/samar-minime-systems/platform/routing/src/index.ts`
+4. **With Agent Runtime** (`platform/agent-core`)
+   - Agents use router to select models for tasks
+   - Provider adapters instantiated based on selected model

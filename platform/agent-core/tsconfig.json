@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src"
+  },
+  "include": ["src"],
+  "references": [
+    { "path": "../config" },
+    { "path": "../database" },
+    { "path": "../observability" },
+    { "path": "../providers" },
+    { "path": "../routing" },
+    { "path": "../schemas" }
+  ]
+}

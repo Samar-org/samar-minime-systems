@@ -1,0 +1,27 @@
+{
+  "name": "@samar/agent-core",
+  "version": "1.0.0",
+  "description": "Core agent execution engine and lifecycle management",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "vitest",
+    "lint": "eslint src/"
+  },
+  "dependencies": {
+    "@samar/config": "workspace:*",
+    "@samar/database": "workspace:*",
+    "@samar/observability": "workspace:*",
+    "@samar/providers": "workspace:*",
+    "@samar/routing": "workspace:*",
+    "@samar/schemas": "workspace:*",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.2.0",
+    "vitest": "^0.34.0"
+  }
+}

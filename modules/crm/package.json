@@ -1,0 +1,9 @@
+{
+  "name": "@samar-minime/crm",
+  "version": "1.0.0",
+  "description": "CRM module for customer relationship management",
+  "main": "src/index.ts",
+  "dependencies": {
+    "zod": "^3.22.0"
+  }
+}

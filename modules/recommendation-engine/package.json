@@ -1,0 +1,9 @@
+{
+  "name": "@samar-minime/recommendation-engine",
+  "version": "1.0.0",
+  "description": "Recommendation engine for intelligent suggestions",
+  "main": "src/index.ts",
+  "dependencies": {
+    "zod": "^3.22.0"
+  }
+}

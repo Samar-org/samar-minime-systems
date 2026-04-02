@@ -1,0 +1,9 @@
+{
+  "name": "@samar-minime/social-calendar",
+  "version": "1.0.0",
+  "description": "Social calendar for scheduling and planning",
+  "main": "src/index.ts",
+  "dependencies": {
+    "zod": "^3.22.0"
+  }
+}

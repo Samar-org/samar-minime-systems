@@ -1,0 +1,9 @@
+{
+  "name": "@samar-minime/notification-system",
+  "version": "1.0.0",
+  "description": "Notification system for alerts and updates",
+  "main": "src/index.ts",
+  "dependencies": {
+    "zod": "^3.22.0"
+  }
+}

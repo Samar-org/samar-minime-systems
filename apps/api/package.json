@@ -1,0 +1,32 @@
+{
+  "name": "@samar/api",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx watch src/server.ts",
+    "start": "node dist/server.js",
+    "test": "vitest run",
+    "lint": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@fastify/cors": "^9.0.0",
+    "@fastify/helmet": "^11.0.0",
+    "@fastify/swagger": "^8.0.0",
+    "@samar/auth": "workspace:*",
+    "@samar/config": "workspace:*",
+    "@samar/database": "workspace:*",
+    "@samar/observability": "workspace:*",
+    "@samar/schemas": "workspace:*",
+    "@temporalio/client": "^1.9.0",
+    "fastify": "^4.26.0",
+    "pino": "^8.19.0",
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.7.0",
+    "typescript": "^5.4.0",
+    "vitest": "^1.6.0"
+  }
+}

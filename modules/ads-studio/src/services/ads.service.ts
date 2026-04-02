@@ -1,43 +1,25 @@
-import { Ad, AdFormat } from '../models/ads.types';
+import { AdCreative, AdCampaign, AdCreativeSchema, AdCampaignSchema } from '../models/ads.types';
 
 export class AdsService {
-  async createAd(
-    format: AdFormat,
-    headline: string,
-    description: string,
-    creative: string,
-    budget: number
-  ): Promise<Ad> {
-    return {
-      id: `ad_${Date.now()}`,
-      format,
-      headline,
-      description,
-      creative,
-      targetAudience: [],
-      budget,
-      startDate: new Date(),
-      endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-      status: 'DRAFT',
-      metrics: {
-        impressions: 0,
-        clicks: 0,
-        conversions: 0
-      }
-    };
+  private campaigns: Map<string, AdCampaign> = new Map();
+
+  createCampaign(campaign: AdCampaign): void {
+    const validated = AdCampaignSchema.parse(campaign);
+    this.campaigns.set(validated.id, validated);
   }
 
-  async publishAd(ad: Ad): Promise<Ad> {
-    return {
-      ...ad,
-      status: 'ACTIVE'
-    };
+  addCreative(campaignId: string, creative: AdCreative): void {
+    const campaign = this.campaigns.get(campaignId);
+    if (campaign) {
+      campaign.creatives.push(AdCreativeSchema.parse(creative));
+    }
   }
 
-  calculateCTR(ad: Ad): number {
-    if (!ad.metrics || ad.metrics.impressions === 0) return 0;
-    return (ad.metrics.clicks / ad.metrics.impressions) * 100;
+  getCampaign(id: string): AdCampaign | undefined {
+    return this.campaigns.get(id);
+  }
+
+  listCampaigns(): AdCampaign[] {
+    return Array.from(this.campaigns.values());
   }
 }
-
-export const adsService = new AdsService();

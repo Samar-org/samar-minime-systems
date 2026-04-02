@@ -1,43 +1,25 @@
-import { Asset, AssetType, AssetLibrary } from '../models/asset.types';
+import { Asset, AssetLibrary, AssetSchema, AssetLibrarySchema } from '../models/asset.types';
 
 export class AssetService {
-  async uploadAsset(
-    name: string,
-    type: AssetType,
-    url: string,
-    tags?: string[]
-  ): Promise<Asset> {
-    return {
-      id: `ast_${Date.now()}`,
-      name,
-      type,
-      url,
-      tags,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
+  private libraries: Map<string, AssetLibrary> = new Map();
+
+  createLibrary(library: AssetLibrary): void {
+    const validated = AssetLibrarySchema.parse(library);
+    this.libraries.set(validated.id, validated);
   }
 
-  async createLibrary(name: string, assets: Asset[]): Promise<AssetLibrary> {
-    return {
-      id: `lib_${Date.now()}`,
-      name,
-      assets,
-      createdAt: new Date()
-    };
+  uploadAsset(libraryId: string, asset: Asset): void {
+    const library = this.libraries.get(libraryId);
+    if (library) {
+      library.assets.push(AssetSchema.parse(asset));
+    }
   }
 
-  async tagAsset(assetId: string, newTags: string[]): Promise<Asset> {
-    return {
-      id: assetId,
-      name: '',
-      type: 'IMAGE',
-      url: '',
-      tags: newTags,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
+  searchAssets(libraryId: string, query: string): Asset[] {
+    const library = this.libraries.get(libraryId);
+    if (!library) return [];
+    return library.assets.filter(
+      a => a.name.includes(query) || a.tags.some(t => t.includes(query))
+    );
   }
 }
-
-export const assetService = new AssetService();

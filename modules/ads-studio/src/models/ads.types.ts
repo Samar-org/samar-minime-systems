@@ -1,31 +1,23 @@
 import { z } from 'zod';
 
-export const AdFormatSchema = z.enum([
-  'BANNER',
-  'INTERSTITIAL',
-  'NATIVE',
-  'VIDEO',
-  'CAROUSEL',
-  'COLLECTION'
-]);
-
-export const AdSchema = z.object({
+export const AdCreativeSchema = z.object({
   id: z.string(),
-  format: AdFormatSchema,
-  headline: z.string(),
+  title: z.string(),
   description: z.string(),
-  creative: z.string(),
-  targetAudience: z.array(z.string()),
-  budget: z.number(),
-  startDate: z.date(),
-  endDate: z.date(),
-  status: z.enum(['DRAFT', 'ACTIVE', 'PAUSED', 'COMPLETED']),
-  metrics: z.object({
-    impressions: z.number().default(0),
-    clicks: z.number().default(0),
-    conversions: z.number().default(0)
-  }).optional()
+  format: z.enum(['text', 'image', 'video', 'carousel']),
+  targetAudience: z.string(),
+  createdAt: z.date()
 });
 
-export type AdFormat = z.infer<typeof AdFormatSchema>;
-export type Ad = z.infer<typeof AdSchema>;
+export type AdCreative = z.infer<typeof AdCreativeSchema>;
+
+export const AdCampaignSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  creatives: z.array(AdCreativeSchema),
+  budget: z.number(),
+  status: z.enum(['draft', 'active', 'paused', 'completed']),
+  createdAt: z.date()
+});
+
+export type AdCampaign = z.infer<typeof AdCampaignSchema>;

@@ -1,19 +1,9 @@
 {
   "name": "@samar-minime/creative-studio",
-  "version": "0.1.0",
-  "description": "Creative studio for Samar-Minime Systems",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
-  "scripts": {
-    "build": "tsc",
-    "dev": "tsc --watch",
-    "test": "jest"
-  },
+  "version": "1.0.0",
+  "description": "Creative studio for content creation and design",
+  "main": "src/index.ts",
   "dependencies": {
     "zod": "^3.22.0"
-  },
-  "devDependencies": {
-    "@types/node": "^20.0.0",
-    "typescript": "^5.0.0"
   }
 }

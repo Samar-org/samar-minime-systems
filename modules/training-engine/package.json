@@ -1,0 +1,9 @@
+{
+  "name": "@samar-minime/training-engine",
+  "version": "1.0.0",
+  "description": "Training engine for model and content training",
+  "main": "src/index.ts",
+  "dependencies": {
+    "zod": "^3.22.0"
+  }
+}

@@ -1,39 +1,24 @@
-import { Creative, CreativeType } from '../models/creative.types';
+import { CreativeAsset, CreativeProject, CreativeAssetSchema, CreativeProjectSchema } from '../models/creative.types';
 
 export class CreativeService {
-  async createCreative(
-    title: string,
-    type: CreativeType,
-    content: string,
-    author: string
-  ): Promise<Creative> {
-    return {
-      id: `crv_${Date.now()}`,
-      title,
-      type,
-      content,
-      status: 'DRAFT',
-      author,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
+  private assets: Map<string, CreativeAsset> = new Map();
+  private projects: Map<string, CreativeProject> = new Map();
+
+  uploadAsset(asset: CreativeAsset): void {
+    const validated = CreativeAssetSchema.parse(asset);
+    this.assets.set(validated.id, validated);
   }
 
-  async submitForReview(creative: Creative): Promise<Creative> {
-    return {
-      ...creative,
-      status: 'REVIEW',
-      updatedAt: new Date()
-    };
+  createProject(project: CreativeProject): void {
+    const validated = CreativeProjectSchema.parse(project);
+    this.projects.set(validated.id, validated);
   }
 
-  async approveCreative(creative: Creative): Promise<Creative> {
-    return {
-      ...creative,
-      status: 'APPROVED',
-      updatedAt: new Date()
-    };
+  getProject(id: string): CreativeProject | undefined {
+    return this.projects.get(id);
+  }
+
+  getAssetsByTag(tag: string): CreativeAsset[] {
+    return Array.from(this.assets.values()).filter(a => a.tags.includes(tag));
   }
 }
-
-export const creativeService = new CreativeService();

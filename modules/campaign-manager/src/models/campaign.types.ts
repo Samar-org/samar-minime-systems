@@ -1,31 +1,24 @@
 import { z } from 'zod';
 
-export const CampaignStatusSchema = z.enum([
-  'PLANNING',
-  'ACTIVE',
-  'PAUSED',
-  'COMPLETED',
-  'ARCHIVED'
-]);
-
 export const CampaignSchema = z.object({
   id: z.string(),
   name: z.string(),
-  description: z.string().optional(),
-  status: CampaignStatusSchema,
+  description: z.string(),
+  budget: z.number(),
   startDate: z.date(),
   endDate: z.date(),
-  objective: z.string(),
-  targetAudience: z.array(z.string()),
-  budget: z.number(),
-  channels: z.array(z.string()),
-  metrics: z.object({
-    reach: z.number().default(0),
-    engagement: z.number().default(0),
-    conversions: z.number().default(0),
-    roi: z.number().default(0)
-  }).optional()
+  status: z.enum(['planning', 'active', 'paused', 'completed']),
+  createdAt: z.date()
 });
 
-export type CampaignStatus = z.infer<typeof CampaignStatusSchema>;
 export type Campaign = z.infer<typeof CampaignSchema>;
+
+export const CampaignMetricsSchema = z.object({
+  campaignId: z.string(),
+  impressions: z.number(),
+  clicks: z.number(),
+  conversions: z.number(),
+  spent: z.number()
+});
+
+export type CampaignMetrics = z.infer<typeof CampaignMetricsSchema>;

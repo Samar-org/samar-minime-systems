@@ -1,27 +1,24 @@
 import { z } from 'zod';
 
-export const CreativeTypeSchema = z.enum([
-  'COPYWRITING',
-  'DESIGN',
-  'VIDEO',
-  'PHOTOGRAPHY',
-  'ANIMATION',
-  'AUDIO',
-  'INTERACTIVE'
-]);
-
-export const CreativeSchema = z.object({
+export const CreativeAssetSchema = z.object({
   id: z.string(),
   title: z.string(),
-  type: CreativeTypeSchema,
-  description: z.string().optional(),
-  content: z.string(),
-  status: z.enum(['DRAFT', 'REVIEW', 'APPROVED', 'PUBLISHED']),
-  author: z.string(),
-  createdAt: z.date(),
-  updatedAt: z.date(),
-  tags: z.array(z.string()).optional()
+  type: z.enum(['image', 'video', 'text', 'audio']),
+  url: z.string().url(),
+  createdBy: z.string(),
+  tags: z.array(z.string()),
+  createdAt: z.date()
 });
 
-export type CreativeType = z.infer<typeof CreativeTypeSchema>;
-export type Creative = z.infer<typeof CreativeSchema>;
+export type CreativeAsset = z.infer<typeof CreativeAssetSchema>;
+
+export const CreativeProjectSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  description: z.string(),
+  assets: z.array(CreativeAssetSchema),
+  status: z.enum(['draft', 'review', 'approved', 'published']),
+  createdAt: z.date()
+});
+
+export type CreativeProject = z.infer<typeof CreativeProjectSchema>;

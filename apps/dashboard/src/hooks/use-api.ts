@@ -1,0 +1,36 @@
+import { useState, useEffect } from 'react';
+
+interface UseApiState<T> {
+  data: T | null;
+  loading: boolean;
+  error: Error | null;
+  refetch: () => Promise<void>;
+}
+
+export function useApi<T>(
+  fn: () => Promise<T>,
+  deps: unknown[] = []
+): UseApiState<T> {
+  const [data, setData] = useState<T | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+
+  const refetch = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await fn();
+      setData(result);
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error(String(err)));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    refetch();
+  }, deps);
+
+  return { data, loading, error, refetch };
+}

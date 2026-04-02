@@ -1,329 +1,235 @@
-"""
-Samar-Minime Llama Fleet — Queue Worker
-Consumes tasks from Redis queue, dispatches to Llama API, stores results.
-Supports parallel execution, retries, and dead-letter queue.
-"""
-
 import asyncio
 import json
 import logging
 import os
-import signal
 import time
-from typing import Any
+from datetime import datetime
+from typing import Any, Dict, Optional
 
+import aioredis
 import httpx
-import redis.asyncio as redis
-from pythonjsonlogger import json as jsonlogger
 
-# ── Configuration ────────────────────────────────────────────────────────────
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
-LLAMA_API_URL = os.getenv("LLAMA_API_URL", "http://localhost:8080")
-REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/1")
-WORKER_CONCURRENCY = int(os.getenv("WORKER_CONCURRENCY", "16"))
-WORKER_BATCH_SIZE = int(os.getenv("WORKER_BATCH_SIZE", "8"))
-POLL_INTERVAL_MS = int(os.getenv("POLL_INTERVAL_MS", "100"))
+# Configuration
+REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379")
+API_URL = os.getenv("LLAMA_API_URL", "http://llama-api:8080")
+API_KEY = os.getenv("LLAMA_API_KEY", "sk-llama-prod-key-1")
 MAX_RETRIES = int(os.getenv("MAX_RETRIES", "3"))
-TASK_TTL = 3600  # 1 hour
-
-# ── Logging ──────────────────────────────────────────────────────────────────
-
-logger = logging.getLogger("llama-worker")
-handler = logging.StreamHandler()
-formatter = jsonlogger.JsonFormatter(
-    "%(asctime)s %(name)s %(levelname)s %(message)s",
-    timestamp=True,
-)
-handler.setFormatter(formatter)
-logger.addHandler(handler)
-logger.setLevel(getattr(logging, os.getenv("LOG_LEVEL", "info").upper()))
-
-# ── Globals ──────────────────────────────────────────────────────────────────
-
-shutdown_event = asyncio.Event()
-redis_client: redis.Redis | None = None
-http_client: httpx.AsyncClient | None = None
-
-# Stats
-stats = {
-    "tasks_processed": 0,
-    "tasks_failed": 0,
-    "tasks_retried": 0,
-    "total_latency_s": 0.0,
-    "total_prompt_tokens": 0,
-    "total_completion_tokens": 0,
-}
+RETRY_DELAY = int(os.getenv("RETRY_DELAY", "5"))
+WORKER_ID = os.getenv("WORKER_ID", f"worker-{int(time.time())}")
+STATS_INTERVAL = 60
 
 
-# ── Task Processing ─────────────────────────────────────────────────────────
+class WorkerStats:
+    """Track worker performance metrics."""
 
-async def process_task(task_data: dict) -> dict:
-    """Process a single inference task."""
-    task_id = task_data.get("_task_id", "unknown")
-    retry_count = task_data.get("_retry_count", 0)
+    def __init__(self):
+        self.tasks_processed = 0
+        self.tasks_failed = 0
+        self.tasks_retried = 0
+        self.total_latency_ms = 0
+        self.total_prompt_tokens = 0
+        self.total_completion_tokens = 0
+        self.start_time = time.time()
 
-    try:
-        # Update status to running
-        await redis_client.set(
-            f"llama:task:{task_id}:status", "running", ex=TASK_TTL
+    def record_success(self, latency_ms: int, prompt_tokens: int, completion_tokens: int):
+        self.tasks_processed += 1
+        self.total_latency_ms += latency_ms
+        self.total_prompt_tokens += prompt_tokens
+        self.total_completion_tokens += completion_tokens
+
+    def record_failure(self):
+        self.tasks_failed += 1
+
+    def record_retry(self):
+        self.tasks_retried += 1
+
+    def to_dict(self) -> Dict[str, Any]:
+        elapsed = time.time() - self.start_time
+        avg_latency = (
+            self.total_latency_ms / self.tasks_processed
+            if self.tasks_processed > 0
+            else 0
         )
-
-        # Build request to Llama API
-        model = task_data.get("model", "llama-3.1-8b")
-        messages = task_data.get("messages", [])
-        max_tokens = task_data.get("max_tokens", 4096)
-        temperature = task_data.get("temperature", 0.7)
-
-        payload = {
-            "model": model,
-            "messages": messages,
-            "max_tokens": max_tokens,
-            "temperature": temperature,
+        throughput = self.tasks_processed / elapsed if elapsed > 0 else 0
+        return {
+            "worker_id": WORKER_ID,
+            "tasks_processed": self.tasks_processed,
+            "tasks_failed": self.tasks_failed,
+            "tasks_retried": self.tasks_retried,
+            "avg_latency_ms": round(avg_latency, 2),
+            "throughput_rps": round(throughput, 2),
+            "total_prompt_tokens": self.total_prompt_tokens,
+            "total_completion_tokens": self.total_completion_tokens,
+            "uptime_seconds": round(elapsed, 2),
         }
 
-        if task_data.get("response_format"):
-            payload["response_format"] = task_data["response_format"]
-        if task_data.get("stop"):
-            payload["stop"] = task_data["stop"]
 
-        start = time.monotonic()
-        response = await http_client.post(
-            f"{LLAMA_API_URL}/v1/chat/completions",
-            json=payload,
-            timeout=120.0,
-        )
-        latency = time.monotonic() - start
-
-        if response.status_code != 200:
-            raise Exception(f"API error {response.status_code}: {response.text}")
-
-        result = response.json()
-
-        # Update stats
-        usage = result.get("usage", {})
-        stats["tasks_processed"] += 1
-        stats["total_latency_s"] += latency
-        stats["total_prompt_tokens"] += usage.get("prompt_tokens", 0)
-        stats["total_completion_tokens"] += usage.get("completion_tokens", 0)
-
-        # Store result
-        await redis_client.set(
-            f"llama:task:{task_id}:result",
-            json.dumps(result),
-            ex=TASK_TTL,
-        )
-        await redis_client.set(
-            f"llama:task:{task_id}:status", "completed", ex=TASK_TTL
-        )
-
-        logger.info(
-            "Task completed",
-            extra={
-                "task_id": task_id,
-                "model": model,
-                "latency_s": round(latency, 3),
-                "prompt_tokens": usage.get("prompt_tokens", 0),
-                "completion_tokens": usage.get("completion_tokens", 0),
-            },
-        )
-
-        return result
-
-    except Exception as e:
-        logger.error(
-            "Task failed",
-            extra={
-                "task_id": task_id,
-                "error": str(e),
-                "retry_count": retry_count,
-            },
-        )
-
-        if retry_count < MAX_RETRIES:
-            # Re-queue with incremented retry count
-            task_data["_retry_count"] = retry_count + 1
-            await redis_client.lpush(
-                "llama:tasks:pending", json.dumps(task_data)
-            )
-            stats["tasks_retried"] += 1
-            logger.info(f"Task {task_id} requeued (retry {retry_count + 1}/{MAX_RETRIES})")
-        else:
-            # Dead letter queue
-            await redis_client.lpush(
-                "llama:tasks:dead", json.dumps(task_data)
-            )
-            await redis_client.set(
-                f"llama:task:{task_id}:status", "failed", ex=TASK_TTL
-            )
-            await redis_client.set(
-                f"llama:task:{task_id}:error", str(e), ex=TASK_TTL
-            )
-            stats["tasks_failed"] += 1
-            logger.error(f"Task {task_id} moved to dead letter queue after {MAX_RETRIES} retries")
-
-        return {"error": str(e)}
+stats = WorkerStats()
 
 
-# ── Worker Loop ──────────────────────────────────────────────────────────────
+async def process_task(
+    redis: aioredis.Redis, task_id: str, task_data: Dict[str, Any]
+) -> bool:
+    """Process a single inference task.
 
-async def worker_loop(worker_id: int):
-    """Single worker coroutine — polls Redis and processes tasks."""
-    logger.info(f"Worker {worker_id} started")
+    Args:
+        redis: Redis client
+        task_id: Unique task identifier
+        task_data: Task payload (model, messages, etc.)
 
-    while not shutdown_event.is_set():
+    Returns:
+        True if task succeeded, False if exhausted retries
+    """
+    logger.info(f"[{task_id}] Processing task")
+    start = time.time()
+
+    for attempt in range(MAX_RETRIES + 1):
         try:
-            # Blocking pop with 1s timeout
-            result = await redis_client.brpop("llama:tasks:pending", timeout=1)
+            async with httpx.AsyncClient(timeout=120.0) as client:
+                response = await client.post(
+                    f"{API_URL}/v1/chat/completions",
+                    json=task_data,
+                    headers={
+                        "Authorization": f"Bearer {API_KEY}",
+                        "Content-Type": "application/json",
+                    },
+                )
+                response.raise_for_status()
 
-            if result is None:
+            result = response.json()
+            latency_ms = int((time.time() - start) * 1000)
+            prompt_tokens = result.get("usage", {}).get("prompt_tokens", 0)
+            completion_tokens = result.get("usage", {}).get("completion_tokens", 0)
+
+            stats.record_success(latency_ms, prompt_tokens, completion_tokens)
+            logger.info(
+                f"[{task_id}] Success in {latency_ms}ms (attempt {attempt + 1}/{MAX_RETRIES + 1})"
+            )
+
+            # Store result
+            await redis.setex(
+                f"task:{task_id}:result",
+                3600,
+                json.dumps(
+                    {
+                        "status": "completed",
+                        "result": result,
+                        "timestamp": datetime.utcnow().isoformat(),
+                    }
+                ),
+            )
+            return True
+
+        except Exception as e:
+            logger.warning(f"[{task_id}] Attempt {attempt + 1} failed: {e}")
+            stats.record_retry()
+            if attempt < MAX_RETRIES:
+                await asyncio.sleep(RETRY_DELAY)
+            else:
+                # Max retries exhausted — send to dead-letter queue
+                stats.record_failure()
+                dlq_entry = {
+                    "task_id": task_id,
+                    "task_data": task_data,
+                    "error": str(e),
+                    "attempts": MAX_RETRIES + 1,
+                    "timestamp": datetime.utcnow().isoformat(),
+                }
+                await redis.lpush("tasks:dlq", json.dumps(dlq_entry))
+                logger.error(f"[{task_id}] Sent to DLQ after {MAX_RETRIES + 1} attempts")
+                await redis.setex(
+                    f"task:{task_id}:result",
+                    3600,
+                    json.dumps(
+                        {
+                            "status": "failed",
+                            "error": str(e),
+                            "timestamp": datetime.utcnow().isoformat(),
+                        }
+                    ),
+                )
+                return False
+
+    return False
+
+
+async def worker_loop(redis: aioredis.Redis):
+    """Single worker loop — consume one task at a time."""
+    logger.info(f"[{WORKER_ID}] Starting single-task worker loop")
+    while True:
+        try:
+            # Block and wait for a task
+            task_item = await redis.blpop("tasks:queue", timeout=10)
+            if not task_item:
                 continue
 
-            _, raw = result
-            task_data = json.loads(raw)
+            _, task_json = task_item
+            task_data = json.loads(task_json)
+            task_id = task_data.get("task_id")
 
-            await process_task(task_data)
-
-        except asyncio.CancelledError:
-            break
-        except json.JSONDecodeError as e:
-            logger.error(f"Worker {worker_id}: invalid JSON in queue: {e}")
+            await process_task(redis, task_id, task_data)
         except Exception as e:
-            logger.error(f"Worker {worker_id}: unexpected error: {e}")
+            logger.error(f"Worker loop error: {e}")
             await asyncio.sleep(1)
 
-    logger.info(f"Worker {worker_id} stopped")
 
-
-# ── Batch Worker ─────────────────────────────────────────────────────────────
-
-async def batch_worker():
-    """
-    Batch worker — collects multiple tasks and processes them together.
-    Useful for throughput optimization when tasks arrive in bursts.
-    """
-    logger.info("Batch worker started")
-
-    while not shutdown_event.is_set():
+async def batch_worker(redis: aioredis.Redis, batch_size: int = 5):
+    """Batch worker — consume multiple tasks in parallel."""
+    logger.info(f"[{WORKER_ID}] Starting batch worker (batch_size={batch_size})")
+    while True:
         try:
-            # Collect a batch
-            batch = []
-            pipe = redis_client.pipeline()
-            for _ in range(WORKER_BATCH_SIZE):
-                pipe.rpop("llama:tasks:pending")
-            results = await pipe.execute()
-
-            for raw in results:
-                if raw is not None:
-                    try:
-                        batch.append(json.loads(raw))
-                    except json.JSONDecodeError:
-                        continue
-
-            if not batch:
-                await asyncio.sleep(POLL_INTERVAL_MS / 1000)
+            tasks = []
+            for _ in range(batch_size):
+                task_item = await asyncio.wait_for(
+                    redis.blpop("tasks:queue", timeout=1), timeout=2
+                )
+                if task_item:
+                    _, task_json = task_item
+                    tasks.append(json.loads(task_json))
+            if not tasks:
                 continue
 
-            # Process batch concurrently
-            tasks = [process_task(task_data) for task_data in batch]
-            await asyncio.gather(*tasks, return_exceptions=True)
-
-        except asyncio.CancelledError:
-            break
+            logger.info(f"[{WORKER_ID}] Processing batch of {len(tasks)} tasks")
+            coros = [
+                process_task(redis, task.get("task_id"), task) for task in tasks
+            ]
+            await asyncio.gather(*coros)
         except Exception as e:
             logger.error(f"Batch worker error: {e}")
             await asyncio.sleep(1)
 
 
-# ── Stats Reporter ───────────────────────────────────────────────────────────
-
-async def stats_reporter():
-    """Periodically log worker stats."""
-    while not shutdown_event.is_set():
-        await asyncio.sleep(60)
-
-        queue_len = await redis_client.llen("llama:tasks:pending")
-        dead_len = await redis_client.llen("llama:tasks:dead")
-
-        avg_latency = 0.0
-        if stats["tasks_processed"] > 0:
-            avg_latency = stats["total_latency_s"] / stats["tasks_processed"]
-
-        logger.info(
-            "Worker stats",
-            extra={
-                "tasks_processed": stats["tasks_processed"],
-                "tasks_failed": stats["tasks_failed"],
-                "tasks_retried": stats["tasks_retried"],
-                "avg_latency_s": round(avg_latency, 3),
-                "total_prompt_tokens": stats["total_prompt_tokens"],
-                "total_completion_tokens": stats["total_completion_tokens"],
-                "queue_pending": queue_len,
-                "queue_dead": dead_len,
-            },
+async def stats_reporter(redis: aioredis.Redis):
+    """Periodically log worker statistics."""
+    while True:
+        await asyncio.sleep(STATS_INTERVAL)
+        stats_dict = stats.to_dict()
+        logger.info(f"Stats: {json.dumps(stats_dict)}")
+        await redis.setex(
+            f"worker:{WORKER_ID}:stats", STATS_INTERVAL * 2, json.dumps(stats_dict)
         )
 
 
-# ── Main ─────────────────────────────────────────────────────────────────────
-
 async def main():
-    global redis_client, http_client
+    redis = await aioredis.from_url(REDIS_URL)
+    logger.info(f"Connected to Redis: {REDIS_URL}")
 
-    logger.info(
-        "Starting Llama Fleet Worker",
-        extra={
-            "concurrency": WORKER_CONCURRENCY,
-            "batch_size": WORKER_BATCH_SIZE,
-            "api_url": LLAMA_API_URL,
-        },
-    )
-
-    redis_client = redis.from_url(REDIS_URL, decode_responses=True)
-    http_client = httpx.AsyncClient(timeout=httpx.Timeout(120.0, connect=10.0))
-
-    # Verify connectivity
-    await redis_client.ping()
-    logger.info("Redis connected")
+    # Create tasks for worker_loop and stats_reporter
+    tasks = [
+        asyncio.create_task(worker_loop(redis)),
+        asyncio.create_task(stats_reporter(redis)),
+    ]
 
     try:
-        health = await http_client.get(f"{LLAMA_API_URL}/health", timeout=10.0)
-        logger.info(f"Llama API health: {health.json()}")
-    except Exception as e:
-        logger.warning(f"Llama API not yet available: {e}")
-
-    # Start workers
-    tasks = []
-
-    # Individual workers for low-latency
-    for i in range(WORKER_CONCURRENCY):
-        tasks.append(asyncio.create_task(worker_loop(i)))
-
-    # Stats reporter
-    tasks.append(asyncio.create_task(stats_reporter()))
-
-    # Handle shutdown signals
-    loop = asyncio.get_event_loop()
-    for sig in (signal.SIGTERM, signal.SIGINT):
-        loop.add_signal_handler(sig, lambda: shutdown_event.set())
-
-    logger.info(f"All {WORKER_CONCURRENCY} workers running")
-
-    # Wait for shutdown
-    await shutdown_event.wait()
-    logger.info("Shutdown signal received, draining workers...")
-
-    # Cancel all tasks
-    for task in tasks:
-        task.cancel()
-    await asyncio.gather(*tasks, return_exceptions=True)
-
-    # Cleanup
-    await http_client.aclose()
-    await redis_client.aclose()
-
-    logger.info(
-        "Worker shutdown complete",
-        extra={"final_stats": stats},
-    )
+        await asyncio.gather(*tasks)
+    except KeyboardInterrupt:
+        logger.info(f"[{WORKER_ID}] Shutting down gracefully")
+        for task in tasks:
+            task.cancel()
+        await redis.close()
 
 
 if __name__ == "__main__":

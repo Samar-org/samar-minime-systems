@@ -13,6 +13,11 @@ const ConfigSchema = z.object({
   ANTHROPIC_API_KEY: z.string().optional(),
   LLAMA_BASE_URL: z.string().url().default('http://localhost:11434/v1'),
 
+  // Llama Fleet (hosted vLLM cluster)
+  LLAMA_FLEET_URL: z.string().url().optional(),
+  LLAMA_FLEET_API_KEY: z.string().optional(),
+  LLAMA_FLEET_ENABLED: z.coerce.boolean().default(false),
+
   // S3 Storage
   S3_ENDPOINT: z.string().url().default('http://localhost:9000'),
   S3_ACCESS_KEY: z.string().default('minioadmin'),
@@ -55,8 +60,8 @@ export function getConfig(): Config {
   if (!_config) {
     const result = ConfigSchema.safeParse(process.env);
     if (!result.success) {
-      const missing = result.error.issues.map(i => i.path.join('.')).join(', ');
-      throw new Error(`Invalid config: ${missing}`);
+      const missing = result.error.issues.map(i => `  ${i.path.join('.')}: ${i.message}`).join('\n');
+      throw new Error(`Invalid configuration:\n${missing}`);
     }
     _config = result.data;
   }

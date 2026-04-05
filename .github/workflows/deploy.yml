@@ -1,0 +1,144 @@
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+
+env:
+  REGISTRY: ghcr.io
+  REGISTRY_USERNAME: ${{ github.actor }}
+  REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+
+jobs:
+  build-images:
+    name: Build Docker Images
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        image:
+          - name: api
+            dockerfile: infra/docker/Dockerfile.api
+            context: .
+          - name: worker
+            dockerfile: infra/docker/Dockerfile.worker
+            context: .
+          - name: dashboard
+            dockerfile: infra/docker/Dockerfile.dashboard
+            context: .
+    outputs:
+      api-image: ${{ steps.meta-api.outputs.tags }}
+      worker-image: ${{ steps.meta-worker.outputs.tags }}
+      dashboard-image: ${{ steps.meta-dashboard.outputs.tags }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ env.REGISTRY_USERNAME }}
+          password: ${{ env.REGISTRY_PASSWORD }}
+
+      - name: Extract metadata (${{ matrix.image.name }})
+        id: meta-${{ matrix.image.name }}
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository }}/${{ matrix.image.name }}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix={{branch}}-
+
+      - name: Build and push Docker image (${{ matrix.image.name }})
+        uses: docker/build-push-action@v4
+        with:
+          context: ${{ matrix.image.context }}
+          file: ${{ matrix.image.dockerfile }}
+          push: true
+          tags: ${{ steps.meta-${{ matrix.image.name }}.outputs.tags }}
+          labels: ${{ steps.meta-${{ matrix.image.name }}.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    name: Deploy to ${{ github.event.inputs.environment }}
+    runs-on: ubuntu-latest
+    needs: build-images
+    environment: ${{ github.event.inputs.environment }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'v1.28.0'
+
+      - name: Set kubeconfig (staging)
+        if: github.event.inputs.environment == 'staging'
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.KUBE_CONFIG_STAGING }}" | base64 -d > $HOME/.kube/config
+          chmod 600 $HOME/.kube/config
+
+      - name: Set kubeconfig (production)
+        if: github.event.inputs.environment == 'production'
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.KUBE_CONFIG_PRODUCTION }}" | base64 -d > $HOME/.kube/config
+          chmod 600 $HOME/.kube/config
+
+      - name: Update image in deployment manifests
+        env:
+          API_IMAGE: ${{ needs.build-images.outputs.api-image }}
+          WORKER_IMAGE: ${{ needs.build-images.outputs.worker-image }}
+          DASHBOARD_IMAGE: ${{ needs.build-images.outputs.dashboard-image }}
+        run: |
+          cd infra/k8s
+          
+          sed -i "s|image: .*api:.*|image: $API_IMAGE|g" api-deployment.yml
+          sed -i "s|image: .*worker:.*|image: $WORKER_IMAGE|g" worker-deployment.yml
+          sed -i "s|image: .*dashboard:.*|image: $DASHBOARD_IMAGE|g" dashboard-deployment.yml
+
+      - name: Apply Kubernetes manifests
+        run: |
+          cd infra/k8s
+          kubectl apply -f namespace.yml
+          kubectl apply -f configmap.yml
+          kubectl apply -f secrets.yml
+          kubectl apply -f api-deployment.yml
+          kubectl apply -f worker-deployment.yml
+          kubectl apply -f dashboard-deployment.yml
+          kubectl apply -f ingress.yml
+
+      - name: Wait for rollout
+        run: |
+          kubectl rollout status deployment/api -n samar-minime --timeout=5m
+          kubectl rollout status deployment/worker -n samar-minime --timeout=5m
+          kubectl rollout status deployment/dashboard -n samar-minime --timeout=5m
+
+      - name: Verify deployment
+        run: |
+          kubectl get pods -n samar-minime
+          kubectl get svc -n samar-minime
+          kubectl get ingress -n samar-minime
+
+      - name: Post deployment notification
+        if: always()
+        run: |
+          echo "Deployment to ${{ github.event.inputs.environment }} completed"
+          echo "Status: ${{ job.status }}"

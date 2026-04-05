@@ -1,0 +1,44 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: samar-minime-config
+  namespace: samar-minime
+data:
+  # API Configuration
+  NODE_ENV: "production"
+  LOG_LEVEL: "info"
+  
+  # API Server
+  API_PORT: "3000"
+  API_HOST: "0.0.0.0"
+  
+  # Database
+  DATABASE_URL: "postgresql://user:password@postgres.samar-minime.svc.cluster.local:5432/samar_minime"
+  
+  # Temporal Workflow Engine
+  TEMPORAL_ADDRESS: "temporal.samar-minime.svc.cluster.local:7233"
+  TEMPORAL_NAMESPACE: "samar-minime"
+  
+  # Dashboard
+  DASHBOARD_PORT: "3001"
+  NEXT_PUBLIC_API_URL: "https://api.samar.io"
+  
+  # Observability
+  OTEL_ENABLED: "true"
+  OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector.samar-minime.svc.cluster.local:4317"
+  
+  # Feature Flags
+  FEATURE_ANALYTICS: "true"
+  FEATURE_RECOMMENDATIONS: "true"
+  FEATURE_WORKFLOW_AUTOMATION: "true"
+  
+  # Service Discovery
+  SERVICE_MESH_ENABLED: "false"
+  
+  # Cache Configuration
+  REDIS_URL: "redis://redis.samar-minime.svc.cluster.local:6379"
+  CACHE_TTL: "3600"
+  
+  # Worker Configuration
+  WORKER_CONCURRENCY: "10"
+  WORKER_QUEUE_TIMEOUT: "30000"

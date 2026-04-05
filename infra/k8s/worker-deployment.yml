@@ -1,0 +1,181 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker
+  namespace: samar-minime
+  labels:
+    app: worker
+    tier: worker
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: worker
+  template:
+    metadata:
+      labels:
+        app: worker
+        tier: worker
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: worker
+      imagePullSecrets:
+        - name: samar-minime-docker-secret
+      containers:
+        - name: worker
+          image: ghcr.io/samar-minime/samar-minime-systems/worker:latest
+          imagePullPolicy: Always
+          env:
+            - name: NODE_ENV
+              valueFrom:
+                configMapKeyRef:
+                  name: samar-minime-config
+                  key: NODE_ENV
+            - name: TEMPORAL_ADDRESS
+              valueFrom:
+                configMapKeyRef:
+                  name: samar-minime-config
+                  key: TEMPORAL_ADDRESS
+            - name: TEMPORAL_NAMESPACE
+              valueFrom:
+                configMapKeyRef:
+                  name: samar-minime-config
+                  key: TEMPORAL_NAMESPACE
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: samar-minime-secrets
+                  key: DATABASE_URL
+            - name: REDIS_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: samar-minime-config
+                  key: REDIS_URL
+            - name: LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: samar-minime-config
+                  key: LOG_LEVEL
+            - name: WORKER_CONCURRENCY
+              valueFrom:
+                configMapKeyRef:
+                  name: samar-minime-config
+                  key: WORKER_CONCURRENCY
+            - name: WORKER_QUEUE_TIMEOUT
+              valueFrom:
+                configMapKeyRef:
+                  name: samar-minime-config
+                  key: WORKER_QUEUE_TIMEOUT
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: samar-minime-secrets
+                  key: OPENAI_API_KEY
+            - name: ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: samar-minime-secrets
+                  key: ANTHROPIC_API_KEY
+            - name: OTEL_ENABLED
+              valueFrom:
+                configMapKeyRef:
+                  name: samar-minime-config
+                  key: OTEL_ENABLED
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              valueFrom:
+                configMapKeyRef:
+                  name: samar-minime-config
+                  key: OTEL_EXPORTER_OTLP_ENDPOINT
+          livenessProbe:
+            exec:
+              command:
+                - /app/health-check.sh
+                - liveness
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            exec:
+              command:
+                - /app/health-check.sh
+                - readiness
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 2
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "500m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+      terminationGracePeriodSeconds: 60
+      restartPolicy: Always
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: worker
+  namespace: samar-minime
+  labels:
+    app: worker
+spec:
+  type: ClusterIP
+  clusterIP: None
+  selector:
+    app: worker
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: worker
+  namespace: samar-minime
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: worker-scripts
+  namespace: samar-minime
+data:
+  health-check.sh: |
+    #!/bin/sh
+    set -e
+    
+    HEALTH_CHECK_TYPE=${1:-liveness}
+    
+    if [ "$HEALTH_CHECK_TYPE" = "liveness" ]; then
+      # Check if worker process is running
+      ps aux | grep -v grep | grep "worker" > /dev/null
+      exit $?
+    elif [ "$HEALTH_CHECK_TYPE" = "readiness" ]; then
+      # Check if worker is connected to Temporal
+      # This would typically check a health endpoint
+      curl -sf http://localhost:9090/health || exit 1
+    fi

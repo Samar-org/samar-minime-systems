@@ -1,0 +1,184 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+  namespace: samar-minime
+  labels:
+    app: api
+    tier: backend
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: api
+  template:
+    metadata:
+      labels:
+        app: api
+        tier: backend
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "3000"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: api
+      imagePullSecrets:
+        - name: samar-minime-docker-secret
+      containers:
+        - name: api
+          image: ghcr.io/samar-minime/samar-minime-systems/api:latest
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+          env:
+            - name: NODE_ENV
+              valueFrom:
+                configMapKeyRef:
+                  name: samar-minime-config
+                  key: NODE_ENV
+            - name: API_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: samar-minime-config
+                  key: API_PORT
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: samar-minime-secrets
+                  key: DATABASE_URL
+            - name: TEMPORAL_ADDRESS
+              valueFrom:
+                configMapKeyRef:
+                  name: samar-minime-config
+                  key: TEMPORAL_ADDRESS
+            - name: REDIS_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: samar-minime-config
+                  key: REDIS_URL
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: samar-minime-secrets
+                  key: JWT_SECRET
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: samar-minime-secrets
+                  key: OPENAI_API_KEY
+            - name: LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: samar-minime-config
+                  key: LOG_LEVEL
+            - name: OTEL_ENABLED
+              valueFrom:
+                configMapKeyRef:
+                  name: samar-minime-config
+                  key: OTEL_ENABLED
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              valueFrom:
+                configMapKeyRef:
+                  name: samar-minime-config
+                  key: OTEL_EXPORTER_OTLP_ENDPOINT
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 2
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 30
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - api
+                topologyKey: kubernetes.io/hostname
+      terminationGracePeriodSeconds: 30
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api
+  namespace: samar-minime
+  labels:
+    app: api
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP
+  selector:
+    app: api
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: api
+  namespace: samar-minime
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: api-pdb
+  namespace: samar-minime
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: api

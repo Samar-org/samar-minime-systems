@@ -4,3 +4,5 @@ export { LlamaAdapter } from './llama/adapter.js';
 export { LlamaFleetAdapter } from './llama/fleet-adapter.js';
 export type { FleetConfig } from './llama/fleet-adapter.js';
 export { ClaudeAdapter } from './claude/adapter.js';
+export { createProviders, createProvidersFromEnv, checkProviderHealth } from './factory.js';
+export type { ProviderConfig, ProviderStatus } from './factory.js';

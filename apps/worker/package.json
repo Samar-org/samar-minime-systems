@@ -11,10 +11,13 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.600.0",
+    "@samar/agent-core": "workspace:*",
     "@samar/agents": "workspace:*",
     "@samar/config": "workspace:*",
     "@samar/database": "workspace:*",
     "@samar/observability": "workspace:*",
+    "@samar/providers": "workspace:*",
     "@samar/routing": "workspace:*",
     "@samar/schemas": "workspace:*",
     "@samar/workflows": "workspace:*",

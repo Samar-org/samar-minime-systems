@@ -23,6 +23,9 @@ export interface ProviderConfig {
   llamaFleetEnabled?: boolean;
   llamaFleetUrl?: string;
   llamaFleetApiKey?: string;
+
+  // Groq (OpenAI-compatible, hosts Llama models)
+  groqApiKey?: string;
 }
 
 export interface ProviderStatus {
@@ -65,6 +68,21 @@ export function createProviders(config: ProviderConfig): Map<string, ProviderAda
     providers.set('llama', new LlamaAdapter(config.llamaBaseUrl));
   }
 
+  // ── Groq (OpenAI-compatible Llama host) ───────────────────────────────
+  if (config.groqApiKey) {
+    providers.set(
+      'groq',
+      new OpenAIAdapter(config.groqApiKey, { baseUrl: 'https://api.groq.com/openai/v1' }),
+    );
+    // If no other llama provider set, use Groq as the 'llama' provider too
+    if (!providers.has('llama')) {
+      providers.set(
+        'llama',
+        new OpenAIAdapter(config.groqApiKey, { baseUrl: 'https://api.groq.com/openai/v1' }),
+      );
+    }
+  }
+
   return providers;
 }
 
@@ -79,6 +97,7 @@ export function createProvidersFromEnv(): Map<string, ProviderAdapter> {
     llamaFleetEnabled: process.env.LLAMA_FLEET_ENABLED === 'true',
     llamaFleetUrl: process.env.LLAMA_FLEET_URL,
     llamaFleetApiKey: process.env.LLAMA_FLEET_API_KEY,
+    groqApiKey: process.env.GROQ_API_KEY,
   });
 }
 

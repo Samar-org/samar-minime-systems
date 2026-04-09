@@ -27,6 +27,7 @@ export class UIArchitectAgent {
         },
         spacing: [4, 8, 16, 24, 32]
       },
+      version: '1.0.0',
       createdAt: new Date(),
       updatedAt: new Date()
     };

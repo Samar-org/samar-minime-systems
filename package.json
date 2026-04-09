@@ -4,12 +4,6 @@
   "private": true,
   "description": "Samar-Minime Systems — Multi-Agent AI Operating System",
   "license": "UNLICENSED",
-  "workspaces": [
-    "apps/*",
-    "platform/*",
-    "modules/*",
-    "projects/*"
-  ],
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",
@@ -33,5 +27,5 @@
   "engines": {
     "node": ">=20.0.0"
   },
-  "packageManager": "npm@10.0.0"
+  "packageManager": "pnpm@9.0.0"
 }

@@ -13,7 +13,7 @@
   "dependencies": {
     "@samar/config": "workspace:*",
     "@samar/database": "workspace:*",
-    "jsonwebtoken": "^9.1.0",
+    "jsonwebtoken": "^9.0.2",
     "zod": "^3.22.4"
   },
   "devDependencies": {

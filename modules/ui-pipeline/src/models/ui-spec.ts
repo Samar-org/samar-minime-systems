@@ -1,13 +1,24 @@
 import { z } from 'zod';
 
-export const UIComponentSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  type: z.enum(['BUTTON', 'CARD', 'FORM', 'LAYOUT', 'MODAL', 'CUSTOM']),
-  props: z.record(z.any()).optional(),
-  children: z.array(z.lazy(() => UIComponentSchema)).optional(),
-  styles: z.record(z.string()).optional()
-});
+export type UIComponent = {
+  id: string;
+  name: string;
+  type: 'BUTTON' | 'CARD' | 'FORM' | 'LAYOUT' | 'MODAL' | 'CUSTOM';
+  props?: Record<string, any>;
+  children?: UIComponent[];
+  styles?: Record<string, string>;
+};
+
+export const UIComponentSchema: z.ZodType<UIComponent> = z.lazy(() =>
+  z.object({
+    id: z.string(),
+    name: z.string(),
+    type: z.enum(['BUTTON', 'CARD', 'FORM', 'LAYOUT', 'MODAL', 'CUSTOM']),
+    props: z.record(z.any()).optional(),
+    children: z.array(UIComponentSchema).optional(),
+    styles: z.record(z.string()).optional()
+  })
+);
 
 export const UISpecSchema = z.object({
   id: z.string(),
@@ -28,5 +39,4 @@ export const UISpecSchema = z.object({
   updatedAt: z.date()
 });
 
-export type UIComponent = z.infer<typeof UIComponentSchema>;
 export type UISpec = z.infer<typeof UISpecSchema>;

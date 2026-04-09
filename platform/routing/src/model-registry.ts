@@ -1,7 +1,69 @@
-import { ModelSpec } from '@samar/schemas';
+import type { ModelSpec } from '@samar/schemas';
 import { getLogger } from '@samar/observability';
 
 const logger = getLogger('model-registry');
+
+/**
+ * Default MODEL_REGISTRY consumed by ModelRouter.
+ * Extend or override by constructing ModelRouter with a custom registry.
+ */
+export const MODEL_REGISTRY: ModelSpec[] = [
+  {
+    id: 'gpt-4o-mini',
+    name: 'gpt-4o-mini',
+    provider: 'openai',
+    tier: 'UTILITY',
+    costPerInputToken: 0.00000015,
+    costPerOutputToken: 0.0000006,
+    supportsJson: true,
+    supportsVision: true,
+    enabled: true,
+  },
+  {
+    id: 'gpt-4o',
+    name: 'gpt-4o',
+    provider: 'openai',
+    tier: 'BUILDER',
+    costPerInputToken: 0.000005,
+    costPerOutputToken: 0.000015,
+    supportsJson: true,
+    supportsVision: true,
+    enabled: true,
+  },
+  {
+    id: 'claude-3-5-sonnet-latest',
+    name: 'claude-3.5-sonnet',
+    provider: 'anthropic',
+    tier: 'DIRECTOR',
+    costPerInputToken: 0.000003,
+    costPerOutputToken: 0.000015,
+    supportsJson: true,
+    supportsVision: true,
+    enabled: true,
+  },
+  {
+    id: 'llama-3.1-8b-instant',
+    name: 'llama-3.1-8b (groq)',
+    provider: 'llama',
+    tier: 'UTILITY',
+    costPerInputToken: 0,
+    costPerOutputToken: 0,
+    supportsJson: true,
+    supportsVision: false,
+    enabled: true,
+  },
+  {
+    id: 'llama-3.3-70b-versatile',
+    name: 'llama-3.3-70b (groq)',
+    provider: 'llama',
+    tier: 'BUILDER',
+    costPerInputToken: 0,
+    costPerOutputToken: 0,
+    supportsJson: true,
+    supportsVision: false,
+    enabled: true,
+  },
+] as any;
 
 export interface ModelMetadata {
   model: string;
@@ -24,27 +86,14 @@ export class ModelRegistry {
 
   private initializeDefaultModels(): void {
     const defaultModels: ModelMetadata[] = [
-      // OpenAI - Foundation tier
       {
-        model: 'gpt-3.5-turbo',
+        model: 'gpt-4o-mini',
         provider: 'openai',
         tier: 'foundation',
-        contextWindow: 4096,
-        basePrice: 0.002,
-        inputCostPer1M: 0.50,
-        outputCostPer1M: 1.50,
-        supportedFormats: ['text', 'json'],
-        available: true,
-      },
-      // OpenAI - Standard tier
-      {
-        model: 'gpt-4',
-        provider: 'openai',
-        tier: 'standard',
-        contextWindow: 8192,
-        basePrice: 0.03,
-        inputCostPer1M: 30.0,
-        outputCostPer1M: 60.0,
+        contextWindow: 128000,
+        basePrice: 0.0002,
+        inputCostPer1M: 0.15,
+        outputCostPer1M: 0.60,
         supportedFormats: ['text', 'json'],
         available: true,
       },
@@ -59,35 +108,10 @@ export class ModelRegistry {
         supportedFormats: ['text', 'json'],
         available: true,
       },
-      // OpenAI - Advanced tier
       {
-        model: 'gpt-4-turbo',
-        provider: 'openai',
+        model: 'claude-3-5-sonnet-latest',
+        provider: 'anthropic',
         tier: 'advanced',
-        contextWindow: 128000,
-        basePrice: 0.03,
-        inputCostPer1M: 10.0,
-        outputCostPer1M: 30.0,
-        supportedFormats: ['text', 'json'],
-        available: true,
-      },
-      // Anthropic - Foundation tier
-      {
-        model: 'claude-3-haiku',
-        provider: 'anthropic',
-        tier: 'foundation',
-        contextWindow: 200000,
-        basePrice: 0.001,
-        inputCostPer1M: 0.25,
-        outputCostPer1M: 1.25,
-        supportedFormats: ['text', 'json'],
-        available: true,
-      },
-      // Anthropic - Standard tier
-      {
-        model: 'claude-3-sonnet',
-        provider: 'anthropic',
-        tier: 'standard',
         contextWindow: 200000,
         basePrice: 0.003,
         inputCostPer1M: 3.0,
@@ -95,28 +119,15 @@ export class ModelRegistry {
         supportedFormats: ['text', 'json'],
         available: true,
       },
-      // Anthropic - Advanced tier
       {
-        model: 'claude-3-opus',
-        provider: 'anthropic',
-        tier: 'advanced',
-        contextWindow: 200000,
-        basePrice: 0.015,
-        inputCostPer1M: 15.0,
-        outputCostPer1M: 75.0,
-        supportedFormats: ['text', 'json'],
-        available: true,
-      },
-      // Llama - Foundation tier
-      {
-        model: 'llama-2-7b',
+        model: 'llama-3.1-8b-instant',
         provider: 'llama',
         tier: 'foundation',
-        contextWindow: 4096,
+        contextWindow: 128000,
         basePrice: 0.0,
         inputCostPer1M: 0.0,
         outputCostPer1M: 0.0,
-        supportedFormats: ['text'],
+        supportedFormats: ['text', 'json'],
         available: true,
       },
     ];

@@ -1,6 +1,6 @@
 import pino from 'pino';
 
-let logLevel = process.env.LOG_LEVEL || 'info';
+let logLevel = process.env['LOG_LEVEL'] || 'info';
 
 const baseLogger = pino({
   level: logLevel,
@@ -20,7 +20,7 @@ export function getLogger(name: string): pino.Logger {
   if (!loggers[name]) {
     loggers[name] = baseLogger.child({ module: name });
   }
-  return loggers[name];
+  return loggers[name]!;
 }
 
 export function setLogLevel(level: string): void {

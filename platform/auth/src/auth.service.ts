@@ -18,13 +18,12 @@ export class AuthService {
   private jwtExpiry: string = '24h';
 
   constructor() {
-    const config = getConfig();
-    this.jwtSecret = config.jwt?.secret || process.env.JWT_SECRET || 'dev-secret';
+    this.jwtSecret = process.env.JWT_SECRET || 'dev-secret';
   }
 
   generateToken(payload: Omit<TokenPayload, 'iat' | 'exp'>): string {
     try {
-      const token = jwt.sign(payload, this.jwtSecret, {
+      const token = jwt.sign(payload as jwt.JwtPayload, this.jwtSecret, {
         expiresIn: this.jwtExpiry,
       });
       logger.info(`Token generated for user: ${payload.userId}`);

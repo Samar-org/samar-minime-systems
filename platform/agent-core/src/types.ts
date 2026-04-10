@@ -28,3 +28,13 @@ export interface AgentMetrics {
     outputTokens: number;
   };
 }
+
+export interface AgentDefinition {
+  id: string;
+  name: string;
+  tier: 'DIRECTOR' | 'BUILDER' | 'UTILITY';
+  description: string;
+  systemPrompt: string;
+  capabilities: string[];
+  maxTokens?: number;
+}

@@ -23,9 +23,10 @@ export class AuthService {
 
   generateToken(payload: Omit<TokenPayload, 'iat' | 'exp'>): string {
     try {
-      const token = jwt.sign(payload as jwt.JwtPayload, this.jwtSecret, {
+      const options: jwt.SignOptions = {
         expiresIn: this.jwtExpiry,
-      });
+      };
+      const token = jwt.sign(payload as jwt.JwtPayload, this.jwtSecret, options);
       logger.info(`Token generated for user: ${payload.userId}`);
       return token;
     } catch (error) {

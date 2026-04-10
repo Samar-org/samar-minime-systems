@@ -35,22 +35,22 @@ export class AgentRuntime {
       logger.info(`Executing task: ${task.id}`);
 
       // Select best model for task
-      const selectedModel = this.router.route({
-        taskDescription: task.description,
-        constraints: task.constraints || {},
+      const decision = this.router.route({
+        taskType: task.description,
+        maxCostUsd: task.constraints?.maxCost,
       });
 
-      logger.info(`Selected model: ${selectedModel.model}`);
+      logger.info(`Selected model: ${decision.model.name}`);
 
       // Get adapter for selected model's provider
-      const adapter = this.adapters.get(selectedModel.provider);
+      const adapter = this.adapters.get(decision.model.provider);
       if (!adapter) {
-        throw new Error(`No adapter registered for provider: ${selectedModel.provider}`);
+        throw new Error(`No adapter registered for provider: ${decision.model.provider}`);
       }
 
       // Execute via adapter
       const response = await adapter.complete({
-        model: selectedModel.model,
+        model: decision.model.id,
         messages: [
           {
             role: 'user',
@@ -63,28 +63,32 @@ export class AgentRuntime {
       const latency = Date.now() - startTime;
 
       return {
-        taskId: task.id,
+        agentRunId: task.id,
         status: 'COMPLETED',
-        output: response.content,
-        model: selectedModel.model,
-        provider: selectedModel.provider,
-        tokensUsed: response.totalTokens,
+        modelUsed: decision.model.name,
+        tier: decision.model.tier,
+        promptTokens: response.promptTokens || 0,
+        completionTokens: response.completionTokens || 0,
+        totalTokens: response.totalTokens || 0,
+        costUsd: decision.estimatedCostUsd,
         latencyMs: latency,
-        cost: selectedModel.estimatedCost,
+        output: response.content,
       };
     } catch (error) {
       const latency = Date.now() - startTime;
       logger.error(`Task failed: ${task.id}`, error);
 
       return {
-        taskId: task.id,
+        agentRunId: task.id,
         status: 'FAILED',
-        output: error instanceof Error ? error.message : 'Unknown error',
-        model: '',
-        provider: '',
-        tokensUsed: { input: 0, output: 0 },
+        modelUsed: '',
+        tier: 'UNKNOWN',
+        promptTokens: 0,
+        completionTokens: 0,
+        totalTokens: 0,
+        costUsd: 0,
         latencyMs: latency,
-        cost: 0,
+        error: error instanceof Error ? error.message : 'Unknown error',
       };
     }
   }

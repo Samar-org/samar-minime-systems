@@ -35,7 +35,7 @@ export class AgentRuntime {
       logger.info(`Executing task: ${task.id}`);
 
       // Select best model for task
-      const selectedModel = this.router.selectModel({
+      const selectedModel = this.router.route({
         taskDescription: task.description,
         constraints: task.constraints || {},
       });
@@ -64,11 +64,11 @@ export class AgentRuntime {
 
       return {
         taskId: task.id,
-        status: 'success',
+        status: 'COMPLETED',
         output: response.content,
         model: selectedModel.model,
         provider: selectedModel.provider,
-        tokensUsed: response.tokenCounts,
+        tokensUsed: response.totalTokens,
         latencyMs: latency,
         cost: selectedModel.estimatedCost,
       };
@@ -78,7 +78,7 @@ export class AgentRuntime {
 
       return {
         taskId: task.id,
-        status: 'error',
+        status: 'FAILED',
         output: error instanceof Error ? error.message : 'Unknown error',
         model: '',
         provider: '',

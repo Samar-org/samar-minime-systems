@@ -9,7 +9,7 @@
 
 export interface NanoBananaConfig {
   apiKey: string;
-  model?: string; // default: gemini-2.0-flash-exp
+  model?: string; // default: gemini-2.5-flash-image
   baseUrl?: string;
 }
 
@@ -37,7 +37,7 @@ export class NanoBananaAdapter {
 
   constructor(config: NanoBananaConfig) {
     this.apiKey = config.apiKey;
-    this.model = config.model ?? 'gemini-2.0-flash-exp';
+    this.model = config.model ?? 'gemini-2.5-flash-image';
     this.baseUrl = config.baseUrl ?? 'https://generativelanguage.googleapis.com/v1beta';
   }
 

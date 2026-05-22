@@ -24,3 +24,7 @@ bash infra/scripts/setup.sh
 ## Stats
 
 238 files | 15,409 lines of TypeScript | 35 packages
+
+---
+
+Built with Samar AI White Glove -- idea to live in minutes, hardened at go-live, documented to last.

@@ -1,0 +1,3 @@
+setup:
+  project: ai-personal-assistant
+  config: dev_samar_minime

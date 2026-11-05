@@ -59,3 +59,13 @@ are stale and must not be used to connect this service. Only approved runtime in
 by recovered modules. Headquarters onboarding requires a Samar Suites binding per project, three
 environments and separate SOPS metadata references. Live project synchronization and the
 project/environment-scoped run and secret-injection bridge remain unimplemented release gates.
+
+## Publication and CI follow-up
+
+Public publication explicitly approved by Samar; draft PR #1 contains the recovery. Initial
+GitHub CI failed before install because setup-node pnpm caching ran before pnpm installation.
+Install order now selects packageManager's pnpm 9.0.0 first. A focused orchestration-contracts
+job supplements the existing whole-repository checks; those checks remain enabled and may expose
+legacy scaffold failures. The original Kubernetes deployment workflow has invalid nested
+expressions and is not a verified path to Droplet 616230389. It must remain unused. No workflow
+dispatch or production credential was used.

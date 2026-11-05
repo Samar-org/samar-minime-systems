@@ -7,6 +7,7 @@ export async function healthRoutes(fastify: FastifyInstance) {
 
   fastify.get('/ready', async (_request, _reply) => {
     // Add readiness checks here
-    return { ready: true };
+    _reply.code(503);
+    return { ready: false, reason: 'Scoped orchestration integration and dependency checks are not accepted' };
   });
 }

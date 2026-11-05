@@ -7,3 +7,7 @@ coverage/
 
 # Doppler local config
 .doppler/
+
+# Build outputs
+.next/
+*.tsbuildinfo

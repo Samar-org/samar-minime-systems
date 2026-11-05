@@ -6,7 +6,7 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "dev": "prisma generate && node --watch -r esbuild-register src/index.ts",
-    "build": "esbuild src/index.ts --bundle --platform=node --outfile=dist/index.js && tsc --declaration --emitDeclarationOnly --outDir dist",
+    "build": "prisma generate && esbuild src/index.ts --bundle --platform=node --external:@prisma/client --outfile=dist/index.js && tsc --declaration --emitDeclarationOnly --outDir dist",
     "migrate:dev": "prisma migrate dev",
     "migrate:deploy": "prisma migrate deploy",
     "generate": "prisma generate",

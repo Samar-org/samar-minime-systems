@@ -18,7 +18,7 @@ export const AgentRunResultSchema = z.object({
   agentRunId: z.string(),
   status: AgentRunStatusSchema,
   modelUsed: z.string(),
-  tier: AgentTierSchema,
+  tier: AgentTierSchema.nullable(),
   promptTokens: z.number().int(),
   completionTokens: z.number().int(),
   totalTokens: z.number().int(),

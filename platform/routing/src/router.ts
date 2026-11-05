@@ -1,4 +1,5 @@
 import type { RoutingRequest, RoutingDecision, ModelSpec } from '@samar/schemas';
+import { RoutingRequestSchema } from '@samar/schemas';
 import { MODEL_REGISTRY } from './model-registry.js';
 
 const TIER_PRIORITY: Record<string, number> = {
@@ -15,9 +16,12 @@ export class ModelRouter {
 
   constructor(registry: ModelSpec[] = MODEL_REGISTRY) {
     this.registry = registry.filter(m => m.enabled);
+    if (this.registry.some(m => !Number.isSafeInteger(m.maxTokens) || m.maxTokens < 1 || !Number.isFinite(m.costPerInputToken) || !Number.isFinite(m.costPerOutputToken) || m.costPerInputToken < 0 || m.costPerOutputToken < 0)) throw new Error('Enabled models require verified positive capacity and finite pricing');
   }
 
-  route(request: RoutingRequest): RoutingDecision {
+  route(input: RoutingRequest): RoutingDecision {
+    const request = RoutingRequestSchema.parse(input);
+    if (request.maxCostUsd === 0) throw new RangeError('Task budget is exhausted');
     const minTier = request.requiredTier
       ? TIER_PRIORITY[request.requiredTier] ?? 0
       : 0;
@@ -58,14 +62,14 @@ export class ModelRouter {
 
     const selected = candidates[0];
     if (!selected) {
-      throw new Error(`No eligible model found for request: ${JSON.stringify(request)}`);
+      throw new Error('No eligible model found for requested constraints');
     }
 
     const estimatedTokens = 2000;
     const estimatedCost = (selected.costPerInputToken * estimatedTokens) + (selected.costPerOutputToken * estimatedTokens);
 
     // Budget check
-    if (request.maxCostUsd && estimatedCost > request.maxCostUsd) {
+    if (request.maxCostUsd !== undefined && estimatedCost > request.maxCostUsd) {
       // Try to find a cheaper model
       const cheaper = candidates.find(m => {
         const cost = (m.costPerInputToken + m.costPerOutputToken) * estimatedTokens;
@@ -80,6 +84,7 @@ export class ModelRouter {
           escalated: false,
         };
       }
+      throw new RangeError('No eligible model fits the task budget');
     }
 
     const escalated = request.retryCount > 0 && effectiveTier !== TIER_ORDER[minTier];

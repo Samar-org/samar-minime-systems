@@ -1,0 +1,1131 @@
+// Restored from the committed migration. See docs/operations/orchestration-recovery.md.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+
+  url = env("DATABASE_URL")
+}
+
+enum ProjectStatus {
+  DRAFT
+
+  ACTIVE
+
+  PAUSED
+
+  COMPLETED
+
+  ARCHIVED
+}
+
+enum WorkflowStatus {
+  PENDING
+
+  RUNNING
+
+  PAUSED
+
+  COMPLETED
+
+  FAILED
+
+  CANCELLED
+}
+
+enum TaskStatus {
+  PENDING
+
+  QUEUED
+
+  RUNNING
+
+  COMPLETED
+
+  FAILED
+
+  CANCELLED
+
+  BLOCKED
+}
+
+enum AgentTier {
+  UTILITY
+
+  BUILDER
+
+  DIRECTOR
+
+  SPECIALIST
+}
+
+enum AgentRunStatus {
+  PENDING
+
+  RUNNING
+
+  COMPLETED
+
+  FAILED
+
+  RETRYING
+
+  TIMEOUT
+}
+
+enum ApprovalStatus {
+  PENDING
+
+  APPROVED
+
+  REJECTED
+
+  EXPIRED
+}
+
+enum DocumentType {
+  PRD
+
+  SPEC
+
+  API_DOC
+
+  SOP
+
+  RELEASE_NOTES
+
+  CAMPAIGN_BRIEF
+
+  RESEARCH_REPORT
+
+  DECISION_MEMO
+
+  TRAINING_MODULE
+
+  CREATIVE_BRIEF
+}
+
+enum CampaignStatus {
+  DRAFT
+
+  SCHEDULED
+
+  ACTIVE
+
+  PAUSED
+
+  COMPLETED
+
+  ARCHIVED
+}
+
+enum CRMContactStatus {
+  LEAD
+
+  PROSPECT
+
+  CUSTOMER
+
+  CHURNED
+
+  REACTIVATED
+}
+
+enum ArtifactType {
+  CODE
+
+  DOCUMENT
+
+  IMAGE
+
+  VIDEO_SCRIPT
+
+  STORYBOARD
+
+  AD_COPY
+
+  LANDING_PAGE
+
+  EMAIL
+
+  SOCIAL_POST
+
+  TRAINING_CONTENT
+
+  RESEARCH
+
+  REPORT
+
+  CONFIG
+}
+
+enum PipelineType {
+  MARKET_RESEARCH
+
+  STRATEGIC_RECOMMENDATION
+
+  DEVELOPMENT
+
+  DOCUMENTATION
+
+  TESTING_QA
+
+  SEO
+
+  ADS
+
+  SALES_FUNNEL
+
+  CRM_RETENTION
+
+  OPTIMIZATION
+
+  CREATIVE_PRODUCTION
+
+  UI_GENERATION
+
+  TRAINING
+}
+
+enum NotificationChannel {
+  EMAIL
+
+  SMS
+
+  PUSH
+
+  IN_APP
+
+  SLACK
+
+  WEBHOOK
+}
+
+enum AssetStatus {
+  UPLOADING
+
+  PROCESSING
+
+  READY
+
+  ARCHIVED
+
+  DELETED
+}
+
+model Organization {
+  id String @id @default(cuid())
+
+  name String
+
+  slug String
+
+  createdAt DateTime @default(now()) @db.Timestamp(3)
+
+  updatedAt DateTime @updatedAt @db.Timestamp(3)
+
+  budgetLimitUsd Float @default(1000)
+
+  org_members_orgId OrgMember[] @relation("org_members_orgId")
+
+  api_keys_orgId ApiKey[] @relation("api_keys_orgId")
+
+  projects_orgId Project[] @relation("projects_orgId")
+
+  @@unique([slug], map: "organizations_slug_key")
+  @@map("organizations")
+}
+
+model User {
+  id String @id @default(cuid())
+
+  email String
+
+  name String
+
+  avatarUrl String?
+
+  createdAt DateTime @default(now()) @db.Timestamp(3)
+
+  updatedAt DateTime @updatedAt @db.Timestamp(3)
+
+  org_members_userId OrgMember[] @relation("org_members_userId")
+
+  approvals_decidedBy Approval[] @relation("approvals_decidedBy")
+
+  activity_logs_userId ActivityLog[] @relation("activity_logs_userId")
+
+  @@unique([email], map: "users_email_key")
+  @@map("users")
+}
+
+model OrgMember {
+  id String @id @default(cuid())
+
+  role String @default("member")
+
+  userId String
+
+  orgId String
+
+  createdAt DateTime @default(now()) @db.Timestamp(3)
+
+  userRelation User @relation("org_members_userId", fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  orgRelation Organization @relation("org_members_orgId", fields: [orgId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([userId, orgId], map: "org_members_userId_orgId_key")
+  @@map("org_members")
+}
+
+model ApiKey {
+  id String @id @default(cuid())
+
+  name String
+
+  keyHash String
+
+  orgId String
+
+  createdAt DateTime @default(now()) @db.Timestamp(3)
+
+  expiresAt DateTime? @db.Timestamp(3)
+
+  lastUsed DateTime? @db.Timestamp(3)
+
+  revoked Boolean @default(false)
+
+  orgRelation Organization @relation("api_keys_orgId", fields: [orgId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([keyHash], map: "api_keys_keyHash_key")
+  @@map("api_keys")
+}
+
+model Project {
+  id String @id @default(cuid())
+
+  name String
+
+  slug String
+
+  description String?
+
+  status ProjectStatus @default(DRAFT)
+
+  orgId String
+
+  budgetLimitUsd Float @default(100)
+
+  budgetUsedUsd Float @default(0)
+
+  metadata Json?
+
+  createdAt DateTime @default(now()) @db.Timestamp(3)
+
+  updatedAt DateTime @updatedAt @db.Timestamp(3)
+
+  orgRelation Organization @relation("projects_orgId", fields: [orgId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  workflows_projectId Workflow[] @relation("workflows_projectId")
+
+  tasks_projectId Task[] @relation("tasks_projectId")
+
+  documents_projectId Document[] @relation("documents_projectId")
+
+  artifacts_projectId Artifact[] @relation("artifacts_projectId")
+
+  research_projectId Research[] @relation("research_projectId")
+
+  recommendations_projectId Recommendation[] @relation("recommendations_projectId")
+
+  campaigns_projectId Campaign[] @relation("campaigns_projectId")
+
+  funnels_projectId Funnel[] @relation("funnels_projectId")
+
+  crm_contacts_projectId CRMContact[] @relation("crm_contacts_projectId")
+
+  creative_briefs_projectId CreativeBrief[] @relation("creative_briefs_projectId")
+
+  ui_pages_projectId UIPage[] @relation("ui_pages_projectId")
+
+  approvals_projectId Approval[] @relation("approvals_projectId")
+
+  cost_records_projectId CostRecord[] @relation("cost_records_projectId")
+
+  @@unique([orgId, slug], map: "projects_orgId_slug_key")
+  @@index([status], map: "projects_status_idx")
+  @@map("projects")
+}
+
+model Workflow {
+  id String @id @default(cuid())
+
+  name String
+
+  type PipelineType
+
+  status WorkflowStatus @default(PENDING)
+
+  projectId String
+
+  temporalRunId String?
+
+  input Json?
+
+  output Json?
+
+  error String?
+
+  startedAt DateTime? @db.Timestamp(3)
+
+  completedAt DateTime? @db.Timestamp(3)
+
+  totalCostUsd Float @default(0)
+
+  totalTokens Int @default(0)
+
+  metadata Json?
+
+  createdAt DateTime @default(now()) @db.Timestamp(3)
+
+  updatedAt DateTime @updatedAt @db.Timestamp(3)
+
+  projectRelation Project @relation("workflows_projectId", fields: [projectId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  tasks_workflowId Task[] @relation("tasks_workflowId")
+
+  agent_runs_workflowId AgentRun[] @relation("agent_runs_workflowId")
+
+  @@unique([temporalRunId], map: "workflows_temporalRunId_key")
+  @@index([projectId, status], map: "workflows_projectId_status_idx")
+  @@index([type], map: "workflows_type_idx")
+  @@index([temporalRunId], map: "workflows_temporalRunId_idx")
+  @@map("workflows")
+}
+
+model Task {
+  id String @id @default(cuid())
+
+  name String
+
+  description String?
+
+  status TaskStatus @default(PENDING)
+
+  projectId String
+
+  workflowId String?
+
+  parentTaskId String?
+
+  agentTier AgentTier?
+
+  priority Int @default(0)
+
+  retryCount Int @default(0)
+
+  maxRetries Int @default(3)
+
+  input Json?
+
+  output Json?
+
+  error String?
+
+  budgetLimitUsd Float @default(5)
+
+  costUsd Float @default(0)
+
+  startedAt DateTime? @db.Timestamp(3)
+
+  completedAt DateTime? @db.Timestamp(3)
+
+  metadata Json?
+
+  createdAt DateTime @default(now()) @db.Timestamp(3)
+
+  updatedAt DateTime @updatedAt @db.Timestamp(3)
+
+  projectRelation Project @relation("tasks_projectId", fields: [projectId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  workflowRelation Workflow? @relation("tasks_workflowId", fields: [workflowId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  parentTaskRelation Task? @relation("tasks_parentTaskId", fields: [parentTaskId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  tasks_parentTaskId Task[] @relation("tasks_parentTaskId")
+
+  agent_runs_taskId AgentRun[] @relation("agent_runs_taskId")
+
+  artifacts_taskId Artifact[] @relation("artifacts_taskId")
+
+  @@index([projectId, status], map: "tasks_projectId_status_idx")
+  @@index([workflowId], map: "tasks_workflowId_idx")
+  @@index([parentTaskId], map: "tasks_parentTaskId_idx")
+  @@map("tasks")
+}
+
+model AgentConfig {
+  id String @id @default(cuid())
+
+  name String
+
+  tier AgentTier
+
+  description String?
+
+  systemPrompt String?
+
+  defaultModel String
+
+  maxTokens Int @default(4096)
+
+  temperature Float @default(0.7)
+
+  capabilities String[]
+
+  enabled Boolean @default(true)
+
+  metadata Json?
+
+  createdAt DateTime @default(now()) @db.Timestamp(3)
+
+  updatedAt DateTime @updatedAt @db.Timestamp(3)
+
+  agent_runs_agentConfigId AgentRun[] @relation("agent_runs_agentConfigId")
+
+  @@unique([name], map: "agent_configs_name_key")
+  @@index([tier], map: "agent_configs_tier_idx")
+  @@map("agent_configs")
+}
+
+model AgentRun {
+  id String @id @default(cuid())
+
+  agentConfigId String
+
+  workflowId String?
+
+  taskId String?
+
+  status AgentRunStatus @default(PENDING)
+
+  modelUsed String
+
+  tier AgentTier
+
+  promptTokens Int @default(0)
+
+  completionTokens Int @default(0)
+
+  totalTokens Int @default(0)
+
+  costUsd Float @default(0)
+
+  latencyMs Int @default(0)
+
+  retryCount Int @default(0)
+
+  input Json?
+
+  output Json?
+
+  error String?
+
+  qualityScore Float?
+
+  confidenceScore Float?
+
+  startedAt DateTime? @db.Timestamp(3)
+
+  completedAt DateTime? @db.Timestamp(3)
+
+  metadata Json?
+
+  createdAt DateTime @default(now()) @db.Timestamp(3)
+
+  agentConfigRelation AgentConfig @relation("agent_runs_agentConfigId", fields: [agentConfigId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  workflowRelation Workflow? @relation("agent_runs_workflowId", fields: [workflowId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  taskRelation Task? @relation("agent_runs_taskId", fields: [taskId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([agentConfigId], map: "agent_runs_agentConfigId_idx")
+  @@index([workflowId], map: "agent_runs_workflowId_idx")
+  @@index([taskId], map: "agent_runs_taskId_idx")
+  @@index([status], map: "agent_runs_status_idx")
+  @@index([modelUsed], map: "agent_runs_modelUsed_idx")
+  @@index([createdAt], map: "agent_runs_createdAt_idx")
+  @@map("agent_runs")
+}
+
+model Document {
+  id String @id @default(cuid())
+
+  title String
+
+  type DocumentType
+
+  content String
+
+  version Int @default(1)
+
+  projectId String
+
+  generatedBy String?
+
+  s3Key String?
+
+  metadata Json?
+
+  createdAt DateTime @default(now()) @db.Timestamp(3)
+
+  updatedAt DateTime @updatedAt @db.Timestamp(3)
+
+  projectRelation Project @relation("documents_projectId", fields: [projectId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([projectId, type], map: "documents_projectId_type_idx")
+  @@map("documents")
+}
+
+model Artifact {
+  id String @id @default(cuid())
+
+  name String
+
+  type ArtifactType
+
+  projectId String
+
+  taskId String?
+
+  s3Key String
+
+  mimeType String?
+
+  sizeBytes Int?
+
+  version Int @default(1)
+
+  metadata Json?
+
+  createdAt DateTime @default(now()) @db.Timestamp(3)
+
+  projectRelation Project @relation("artifacts_projectId", fields: [projectId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  taskRelation Task? @relation("artifacts_taskId", fields: [taskId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([projectId, type], map: "artifacts_projectId_type_idx")
+  @@index([taskId], map: "artifacts_taskId_idx")
+  @@map("artifacts")
+}
+
+model Research {
+  id String @id @default(cuid())
+
+  title String
+
+  projectId String
+
+  type String
+
+  summary String?
+
+  findings Json?
+
+  sources Json?
+
+  qualityScore Float?
+
+  metadata Json?
+
+  createdAt DateTime @default(now()) @db.Timestamp(3)
+
+  updatedAt DateTime @updatedAt @db.Timestamp(3)
+
+  projectRelation Project @relation("research_projectId", fields: [projectId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  recommendations_researchId Recommendation[] @relation("recommendations_researchId")
+
+  @@index([projectId, type], map: "research_projectId_type_idx")
+  @@map("research")
+}
+
+model Recommendation {
+  id String @id @default(cuid())
+
+  title String
+
+  projectId String
+
+  researchId String?
+
+  options Json
+
+  bestOption String?
+
+  risks Json?
+
+  roiEstimate Json?
+
+  decisionMemo String?
+
+  status String @default("pending")
+
+  metadata Json?
+
+  createdAt DateTime @default(now()) @db.Timestamp(3)
+
+  updatedAt DateTime @updatedAt @db.Timestamp(3)
+
+  projectRelation Project @relation("recommendations_projectId", fields: [projectId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  researchRelation Research? @relation("recommendations_researchId", fields: [researchId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([projectId], map: "recommendations_projectId_idx")
+  @@map("recommendations")
+}
+
+model Campaign {
+  id String @id @default(cuid())
+
+  name String
+
+  projectId String
+
+  status CampaignStatus @default(DRAFT)
+
+  type String
+
+  audience Json?
+
+  budget Float?
+
+  startDate DateTime? @db.Timestamp(3)
+
+  endDate DateTime? @db.Timestamp(3)
+
+  metrics Json?
+
+  metadata Json?
+
+  createdAt DateTime @default(now()) @db.Timestamp(3)
+
+  updatedAt DateTime @updatedAt @db.Timestamp(3)
+
+  projectRelation Project @relation("campaigns_projectId", fields: [projectId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  ad_sets_campaignId AdSet[] @relation("ad_sets_campaignId")
+
+  @@index([projectId, status], map: "campaigns_projectId_status_idx")
+  @@map("campaigns")
+}
+
+model AdSet {
+  id String @id @default(cuid())
+
+  campaignId String
+
+  name String
+
+  platform String
+
+  audience Json?
+
+  budget Float?
+
+  hooks Json?
+
+  headlines Json?
+
+  bodyCopy Json?
+
+  ctas Json?
+
+  imagePrompts Json?
+
+  videoScripts Json?
+
+  testMatrix Json?
+
+  status String @default("draft")
+
+  metrics Json?
+
+  metadata Json?
+
+  createdAt DateTime @default(now()) @db.Timestamp(3)
+
+  updatedAt DateTime @updatedAt @db.Timestamp(3)
+
+  campaignRelation Campaign @relation("ad_sets_campaignId", fields: [campaignId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([campaignId], map: "ad_sets_campaignId_idx")
+  @@map("ad_sets")
+}
+
+model Funnel {
+  id String @id @default(cuid())
+
+  name String
+
+  projectId String
+
+  stages Json
+
+  offers Json?
+
+  upsells Json?
+
+  sequences Json?
+
+  metrics Json?
+
+  metadata Json?
+
+  createdAt DateTime @default(now()) @db.Timestamp(3)
+
+  updatedAt DateTime @updatedAt @db.Timestamp(3)
+
+  projectRelation Project @relation("funnels_projectId", fields: [projectId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([projectId], map: "funnels_projectId_idx")
+  @@map("funnels")
+}
+
+model CRMContact {
+  id String @id @default(cuid())
+
+  projectId String
+
+  email String?
+
+  name String?
+
+  phone String?
+
+  status CRMContactStatus @default(LEAD)
+
+  segment String?
+
+  tags String[]
+
+  lifecycle String?
+
+  lastContact DateTime? @db.Timestamp(3)
+
+  metadata Json?
+
+  createdAt DateTime @default(now()) @db.Timestamp(3)
+
+  updatedAt DateTime @updatedAt @db.Timestamp(3)
+
+  projectRelation Project @relation("crm_contacts_projectId", fields: [projectId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  crm_interactions_contactId CRMInteraction[] @relation("crm_interactions_contactId")
+
+  @@index([projectId, status], map: "crm_contacts_projectId_status_idx")
+  @@index([email], map: "crm_contacts_email_idx")
+  @@index([segment], map: "crm_contacts_segment_idx")
+  @@map("crm_contacts")
+}
+
+model CRMInteraction {
+  id String @id @default(cuid())
+
+  contactId String
+
+  type String
+
+  content String?
+
+  channel String?
+
+  metadata Json?
+
+  createdAt DateTime @default(now()) @db.Timestamp(3)
+
+  contactRelation CRMContact @relation("crm_interactions_contactId", fields: [contactId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([contactId], map: "crm_interactions_contactId_idx")
+  @@index([type], map: "crm_interactions_type_idx")
+  @@map("crm_interactions")
+}
+
+model CreativeBrief {
+  id String @id @default(cuid())
+
+  projectId String
+
+  type String
+
+  concept Json
+
+  outputs Json?
+
+  status String @default("draft")
+
+  metadata Json?
+
+  createdAt DateTime @default(now()) @db.Timestamp(3)
+
+  updatedAt DateTime @updatedAt @db.Timestamp(3)
+
+  projectRelation Project @relation("creative_briefs_projectId", fields: [projectId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([projectId, type], map: "creative_briefs_projectId_type_idx")
+  @@map("creative_briefs")
+}
+
+model UIPage {
+  id String @id @default(cuid())
+
+  projectId String
+
+  pageId String
+
+  pageName String
+
+  routePath String
+
+  uxSpec Json
+
+  components Json
+
+  refinementReport Json?
+
+  fullPageCode String?
+
+  layoutTemplate String?
+
+  consistencyScore Float?
+
+  designSystemVersion String?
+
+  status String @default("draft")
+
+  metadata Json?
+
+  createdAt DateTime @default(now()) @db.Timestamp(3)
+
+  updatedAt DateTime @updatedAt @db.Timestamp(3)
+
+  projectRelation Project @relation("ui_pages_projectId", fields: [projectId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([projectId, pageId], map: "ui_pages_projectId_pageId_key")
+  @@index([projectId], map: "ui_pages_projectId_idx")
+  @@map("ui_pages")
+}
+
+model Approval {
+  id String @id @default(cuid())
+
+  projectId String
+
+  entityType String
+
+  entityId String
+
+  status ApprovalStatus @default(PENDING)
+
+  requestedBy String?
+
+  decidedBy String?
+
+  reason String?
+
+  expiresAt DateTime? @db.Timestamp(3)
+
+  decidedAt DateTime? @db.Timestamp(3)
+
+  metadata Json?
+
+  createdAt DateTime @default(now()) @db.Timestamp(3)
+
+  projectRelation Project @relation("approvals_projectId", fields: [projectId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  decidedByRelation User? @relation("approvals_decidedBy", fields: [decidedBy], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([projectId, status], map: "approvals_projectId_status_idx")
+  @@index([entityType, entityId], map: "approvals_entityType_entityId_idx")
+  @@map("approvals")
+}
+
+model CostRecord {
+  id String @id @default(cuid())
+
+  projectId String
+
+  workflowId String?
+
+  taskId String?
+
+  agentRunId String?
+
+  model String
+
+  provider String
+
+  tier AgentTier
+
+  promptTokens Int @default(0)
+
+  completionTokens Int @default(0)
+
+  totalTokens Int @default(0)
+
+  costUsd Float @default(0)
+
+  latencyMs Int @default(0)
+
+  metadata Json?
+
+  createdAt DateTime @default(now()) @db.Timestamp(3)
+
+  projectRelation Project @relation("cost_records_projectId", fields: [projectId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([projectId], map: "cost_records_projectId_idx")
+  @@index([model], map: "cost_records_model_idx")
+  @@index([provider], map: "cost_records_provider_idx")
+  @@index([createdAt], map: "cost_records_createdAt_idx")
+  @@map("cost_records")
+}
+
+model ActivityLog {
+  id String @id @default(cuid())
+
+  userId String?
+
+  action String
+
+  entity String
+
+  entityId String
+
+  details Json?
+
+  createdAt DateTime @default(now()) @db.Timestamp(3)
+
+  userRelation User? @relation("activity_logs_userId", fields: [userId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([entity, entityId], map: "activity_logs_entity_entityId_idx")
+  @@index([userId], map: "activity_logs_userId_idx")
+  @@index([createdAt], map: "activity_logs_createdAt_idx")
+  @@map("activity_logs")
+}
+
+model Notification {
+  id String @id @default(cuid())
+
+  channel NotificationChannel
+
+  recipient String
+
+  subject String?
+
+  body String
+
+  sent Boolean @default(false)
+
+  sentAt DateTime? @db.Timestamp(3)
+
+  error String?
+
+  metadata Json?
+
+  createdAt DateTime @default(now()) @db.Timestamp(3)
+
+  @@index([channel, sent], map: "notifications_channel_sent_idx")
+  @@index([createdAt], map: "notifications_createdAt_idx")
+  @@map("notifications")
+}
+
+model Asset {
+  id String @id @default(cuid())
+
+  name String
+
+  s3Key String
+
+  mimeType String
+
+  sizeBytes Int
+
+  status AssetStatus @default(UPLOADING)
+
+  tags String[]
+
+  collection String?
+
+  version Int @default(1)
+
+  uploadedBy String?
+
+  metadata Json?
+
+  createdAt DateTime @default(now()) @db.Timestamp(3)
+
+  updatedAt DateTime @updatedAt @db.Timestamp(3)
+
+  @@unique([s3Key], map: "assets_s3Key_key")
+  @@index([status], map: "assets_status_idx")
+  @@index([collection], map: "assets_collection_idx")
+  @@index([tags], map: "assets_tags_idx")
+  @@map("assets")
+}
+
+model PromptTemplate {
+  id String @id @default(cuid())
+
+  name String
+
+  domain String
+
+  version Int @default(1)
+
+  systemPrompt String
+
+  userPromptTemplate String
+
+  variables String[]
+
+  model String?
+
+  tier AgentTier?
+
+  metadata Json?
+
+  createdAt DateTime @default(now()) @db.Timestamp(3)
+
+  updatedAt DateTime @updatedAt @db.Timestamp(3)
+
+  @@unique([name], map: "prompt_templates_name_key")
+  @@index([domain], map: "prompt_templates_domain_idx")
+  @@map("prompt_templates")
+}
+
+model Evaluation {
+  id String @id @default(cuid())
+
+  agentRunId String
+
+  criteria Json
+
+  scores Json
+
+  overallScore Float
+
+  feedback String?
+
+  evaluatedBy String
+
+  metadata Json?
+
+  createdAt DateTime @default(now()) @db.Timestamp(3)
+
+  @@index([agentRunId], map: "evaluations_agentRunId_idx")
+  @@index([overallScore], map: "evaluations_overallScore_idx")
+  @@map("evaluations")
+}

@@ -1,9 +1,9 @@
-import { createLogger } from '@samar/observability';
+import { getLogger } from '@samar/observability';
 import type { MarketplaceConfig } from './config.js';
 import { vendorOnboardingPipeline } from './pipelines/vendor-onboarding.pipeline.js';
 import { marketplaceGrowthPipeline } from './pipelines/marketplace-growth.pipeline.js';
 
-const logger = createLogger('marketplace-orchestrator');
+const logger = getLogger('marketplace-orchestrator');
 
 export class MarketplaceOrchestrator {
   constructor(private config: MarketplaceConfig) {}

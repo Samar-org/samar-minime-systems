@@ -51,8 +51,8 @@ unverified. General deployment authorization has been received; technical gates 
 
 Worker and eight dependency package builds passed; 65 targeted provider/router/runtime/workflow
 tests passed. `scripts/check-schema-parity.py` compares the recovered client-generated SQL against
-the committed migration without a database. The full 35-package build still fails on legacy
-dashboard path aliases; this recovery is not a full application build or deployment.
+the committed migration without a database. The initial whole-repository build failed on legacy dashboard path aliases. Subsequent CI
+recovery addresses compilation separately; no successful build constitutes a deployment.
 
 Estate SOPS is the secrets source of record. Historical Doppler examples in the original scaffold
 are stale and must not be used to connect this service. Only approved runtime injection is used
@@ -71,3 +71,43 @@ expressions and did not target Droplet 616230389. It is replaced by an explicit 
 release preflight with read-only repository permission and no deployment or secret access.
 The preflight refuses release until the actual target, ledger, vault, evidence and rollback
 bridge exist. No workflow dispatch or production credential was used.
+
+## Whole-workspace CI recovery
+
+The initial Lint job invoked TypeScript at a root with no tsconfig and checked no code. The
+Test job failed before discovery because `pnpm test --run` is not a valid pnpm invocation.
+CI now calls named root scripts: typecheck builds dependency declarations and checks every
+workspace configuration; test builds the package exports needed by a fresh checkout and
+discovers all test files through the root Vitest version. No tests or package typechecks
+are excluded to obtain a pass. The independent full build job remains enabled.
+
+Recovered the missing dashboard TypeScript alias configuration and CSS import, completed
+its referenced API client methods, aligned four project module settings with NodeNext,
+declared their existing Zod dependency, and changed stale logger imports to the real owner.
+This restores scaffold compilation; it does not make the legacy dashboard the approved HQ UI.
+
+The old API imported nonexistent authentication and used Express-specific content-type
+validation in Fastify. It also returned fixed invented IDs, empty business telemetry and
+allowed arbitrary Temporal workflow starts. Those unavailable routes now return 503 through
+a shared boundary; only liveness and explicit negative readiness are exposed. Bootstrap and
+factory are separate so HTTP-injection tests run without opening a port, creating JWTs,
+connecting a DB or calling Temporal. The direct legacy workflow-start helper refuses execution
+until the HQ claim/settlement owner is connected. This is a deliberate blocked state, not a
+new authentication implementation. Production routes must remain unavailable until accepted.
+
+Local evidence: all 68 tests discovered across seven files pass, including three actual Fastify
+HTTP-boundary cases. The dashboard production build and four project builds pass. Final
+whole-workspace typecheck, GitHub CI and full build results are recorded in the PR.
+
+The complete typecheck also exposed a previously unchecked notification module: undeclared
+mail/database imports, missing input types, delivery success reported without SMTP/webhook
+configuration, and read acknowledgements written into delivery timestamps. Its legacy delivery
+and persistence entry points are explicitly unavailable until a project/environment-scoped
+outbox and independent acknowledgement owner are connected. No SMTP or Slack call is made,
+no delivery ID is fabricated, and no notification row can be changed by this module. Scoped
+contracts and denial tests document this intentional remaining integration work.
+
+Image responses are now schema-validated and malformed/refused responses raise a generic
+error rather than echoing provider response text. No Gemini call was made.
+
+Final local CI-recovery evidence: all 35 workspace TypeScript configurations checked; all 73 tests across nine files passed through the fresh-checkout-aware root runner; dashboard production build passed; workflow YAML and git diff checks passed. The limited credential-pattern scan found no matches in the 59 changed/new files. GitHub CI results remain separate from local results and are recorded in draft PR #1.

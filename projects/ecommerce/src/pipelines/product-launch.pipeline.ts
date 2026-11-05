@@ -1,7 +1,7 @@
-import { createLogger } from '@samar/observability';
+import { getLogger } from '@samar/observability';
 import type { EcommerceConfig } from '../config.js';
 
-const logger = createLogger('product-launch-pipeline');
+const logger = getLogger('product-launch-pipeline');
 
 export async function productLaunchPipeline(
   config: EcommerceConfig,

@@ -1,9 +1,9 @@
-import { createLogger } from '@samar/observability';
+import { getLogger } from '@samar/observability';
 import type { WarehouseConfig } from './config.js';
 import { sopGenerationPipeline } from './pipelines/sop-generation.pipeline.js';
 import { onboardingPackPipeline } from './pipelines/onboarding-pack.pipeline.js';
 
-const logger = createLogger('warehouse-orchestrator');
+const logger = getLogger('warehouse-orchestrator');
 
 export class WarehouseOrchestrator {
   constructor(private config: WarehouseConfig) {}

@@ -26,12 +26,7 @@ export async function startWorkflow<T>(
   workflowType: WorkflowType,
   args: unknown[]
 ): Promise<string> {
-  const client = await getTemporalClient();
-  const handle = await client.workflow.start(workflowType, {
-    args,
-    taskQueue: TASK_QUEUE,
-  });
-  return handle.workflowId;
+  throw new Error('Use the scoped Headquarters run claim and budget owner before starting workflows');
 }
 
 export async function getWorkflowResult(workflowId: string): Promise<unknown> {

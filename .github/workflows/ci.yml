@@ -18,7 +18,7 @@ permissions:
 
 jobs:
   lint:
-    name: Lint
+    name: Typecheck
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -39,7 +39,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Run TypeScript compiler
-        run: pnpm tsc --noEmit
+        run: pnpm run typecheck
 
   test:
     name: Test
@@ -63,7 +63,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Run tests
-        run: pnpm test --run
+        run: pnpm run test
 
       - name: Upload coverage
         uses: codecov/codecov-action@v3

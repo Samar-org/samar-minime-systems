@@ -1,8 +1,8 @@
-import { createLogger } from '@samar/observability';
+import { getLogger } from '@samar/observability';
 import { loadWarehouseConfig } from './config.js';
 import { WarehouseOrchestrator } from './orchestrator.js';
 
-const logger = createLogger('warehouse-project');
+const logger = getLogger('warehouse-project');
 
 async function main() {
   try {

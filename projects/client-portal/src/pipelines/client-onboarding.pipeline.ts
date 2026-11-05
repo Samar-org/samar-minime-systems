@@ -1,7 +1,7 @@
-import { createLogger } from '@samar/observability';
+import { getLogger } from '@samar/observability';
 import type { ClientPortalConfig } from '../config.js';
 
-const logger = createLogger('client-onboarding-pipeline');
+const logger = getLogger('client-onboarding-pipeline');
 
 export async function clientOnboardingPipeline(
   config: ClientPortalConfig,

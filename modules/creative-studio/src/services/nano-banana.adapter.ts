@@ -7,6 +7,21 @@
  * Requires: GEMINI_API_KEY (get from https://aistudio.google.com/apikey)
  */
 
+import { z } from 'zod';
+
+const imageResponseSchema=z.object({candidates:z.array(z.object({content:z.object({parts:z.array(
+ z.object({inlineData:z.object({mimeType:z.string(),data:z.string().min(1)}).optional(),text:z.string().optional()})
+)})})).min(1)});
+
+/** Validate provider data without exposing response text in errors. */
+export function parseGeneratedImage(payload:unknown):{imageBase64:string;mimeType:string} {
+ const parsed=imageResponseSchema.safeParse(payload);
+ if(!parsed.success)throw new Error('No valid image generated');
+ const image=parsed.data.candidates[0].content.parts.find(part=>part.inlineData?.mimeType.startsWith('image/'))?.inlineData;
+ if(!image)throw new Error('No valid image generated');
+ return {imageBase64:image.data,mimeType:image.mimeType};
+}
+
 export interface NanoBananaConfig {
   apiKey: string;
   model?: string; // default: gemini-2.5-flash-image
@@ -67,30 +82,14 @@ export class NanoBananaAdapter {
     });
 
     if (!res.ok) {
-      const error = await res.json().catch(() => ({}));
-      throw new Error(
-        `Nano Banana API error (${res.status}): ${JSON.stringify(error)}`
-      );
+      throw new Error(`Image provider request failed (${res.status})`);
     }
 
-    const data = await res.json();
-
-    // Extract image from response parts
-    const parts = data?.candidates?.[0]?.content?.parts ?? [];
-    const imagePart = parts.find(
-      (p: any) => p.inlineData?.mimeType?.startsWith('image/')
-    );
-
-    if (!imagePart) {
-      const textPart = parts.find((p: any) => p.text);
-      throw new Error(
-        `No image generated. Model response: ${textPart?.text ?? 'empty'}`
-      );
-    }
+    const image = parseGeneratedImage(await res.json());
 
     return {
-      imageBase64: imagePart.inlineData.data,
-      mimeType: imagePart.inlineData.mimeType,
+      imageBase64: image.imageBase64,
+      mimeType: image.mimeType,
       prompt: enhancedPrompt,
       model: this.model,
       generatedAt: new Date(),

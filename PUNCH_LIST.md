@@ -25,3 +25,8 @@ Pre-go-live shortcuts to clean up. Items are added automatically as Phase 1 corn
 - [ ] Verify real provider prices, token limits, timeout cancellation and ambiguous billing recovery. Severity high.
 - [ ] Validate Temporal replay and independent QA in a real isolated worker environment. Severity high.
 - [ ] Reconcile this existing repository into the current estate registry; old Doppler instructions are superseded by SOPS. Severity high.
+
+- [ ] Connect the disabled API to the authoritative HQ session/project/ledger owner before exposing business routes; no bearer-header presence check may substitute for verification. Severity high.
+- [ ] Replace the legacy dashboard/auth scaffold with approved Headquarters UI and secure session integration; compile success is not UI acceptance. Severity high.
+
+- [ ] Implement scoped notification outbox delivery and separate read acknowledgements; legacy dispatch/store now explicitly unavailable and cannot report fabricated success. Severity high.

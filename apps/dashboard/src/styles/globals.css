@@ -1,0 +1,12 @@
+/* Minimal scaffold styles; Headquarters production design lives in callcenter. */
+:root { color-scheme: light; font-family: system-ui, sans-serif; color: #172033; background: #f4f6f9; }
+* { box-sizing: border-box; }
+body { margin: 0; }
+a { color: #194d91; }
+nav, main { padding: 1rem 1.5rem; }
+nav { background: #fff; border-bottom: 1px solid #d9dfe8; }
+nav a { display: inline-block; margin: .5rem 1rem .5rem 0; }
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: .75rem; border-bottom: 1px solid #d9dfe8; }
+input, button, select { font: inherit; padding: .5rem; }
+button { cursor: pointer; }

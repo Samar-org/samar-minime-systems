@@ -66,6 +66,8 @@ Public publication explicitly approved by Samar; draft PR #1 contains the recove
 GitHub CI failed before install because setup-node pnpm caching ran before pnpm installation.
 Install order now selects packageManager's pnpm 9.0.0 first. A focused orchestration-contracts
 job supplements the existing whole-repository checks; those checks remain enabled and may expose
-legacy scaffold failures. The original Kubernetes deployment workflow has invalid nested
-expressions and is not a verified path to Droplet 616230389. It must remain unused. No workflow
-dispatch or production credential was used.
+legacy scaffold failures. The original Kubernetes deployment workflow had invalid nested
+expressions and did not target Droplet 616230389. It is replaced by an explicit manual-only
+release preflight with read-only repository permission and no deployment or secret access.
+The preflight refuses release until the actual target, ledger, vault, evidence and rollback
+bridge exist. No workflow dispatch or production credential was used.

@@ -35,18 +35,21 @@ export class ClaudeAdapter implements ProviderAdapter {
   async complete(request: CompletionRequest): Promise<CompletionResponse> {
     let lastError: Error | null = null;
 
-    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    const retries = request.maxAttempts === 1 ? 0 : MAX_RETRIES;
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      request.signal?.throwIfAborted();
       try {
         return await this._execute(request);
       } catch (error: any) {
         lastError = error;
+        if (request.signal?.aborted) throw error;
 
         const statusCode = error?.statusCode;
         if (statusCode && !RETRYABLE_STATUS_CODES.has(statusCode)) {
           throw error;
         }
 
-        if (attempt === MAX_RETRIES) break;
+        if (attempt === retries) break;
 
         const delay = RETRY_BASE_DELAY_MS * Math.pow(2, attempt) + Math.random() * 500;
 
@@ -102,7 +105,7 @@ export class ClaudeAdapter implements ProviderAdapter {
           'anthropic-version': '2023-06-01',
         },
         body: JSON.stringify(body),
-        signal: controller.signal,
+        signal: request.signal ? AbortSignal.any([controller.signal, request.signal]) : controller.signal,
       });
 
       const latencyMs = Date.now() - start;

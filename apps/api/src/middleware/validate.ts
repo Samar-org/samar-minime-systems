@@ -6,8 +6,8 @@ export async function validateRequest(
 ) {
   // Validate Content-Type for POST/PUT requests
   if (['POST', 'PUT', 'PATCH'].includes(request.method)) {
-    if (request.method !== 'GET' && !request.is('application/json')) {
-      throw new Error('Content-Type must be application/json');
+    if (!request.headers['content-type']?.split(';')[0]?.trim().toLowerCase().match(/^application\/json$/)) {
+      return _reply.code(415).send({ error: 'Content-Type must be application/json' });
     }
   }
 

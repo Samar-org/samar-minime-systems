@@ -72,13 +72,13 @@ Security posture: Phase 1 -- speed over ceremony, shortcuts tracked in PUNCH_LIS
 
 ## Secrets
 
-This repo uses **Doppler** for secrets management.
+The estate **SOPS + age vault in `Samar-org/samar-suites` is the source of record**.
 
-- **Local dev:** Run `doppler run -- claude` to start Claude Code with all secrets injected.
-- **Any process:** `doppler run -- pnpm dev`, `doppler run -- node server.js`, etc.
-- **CI/CD:** Secrets are auto-synced from Doppler to GitHub Org Secrets (Samar-org).
-- **Never commit secrets** to `.env` files. Doppler injects them at runtime.
-- **Doppler project:** `ai-personal-assistant` | **Config:** `dev` (local), `stg`, `prd`
+- Runtime identities are delivered only through the approved project/environment-scoped injection process.
+- Never decrypt vaults for inspection, copy an age private key to a server, or create plaintext `.env` files.
+- Headquarters workers require a distinct Supabase Auth identity for exactly one project/environment; they never receive a service-role key.
+- Provider, evidence-store and machine credentials remain separate owners and are not synchronized into an application database.
+- Historical Doppler references from the original scaffold are retired and must not be used for this repository.
 
 ---
 

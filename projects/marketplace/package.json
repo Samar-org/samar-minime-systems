@@ -16,7 +16,8 @@
     "@samar/observability": "workspace:*",
     "@samar/schemas": "workspace:*",
     "@temporalio/client": "^1.9.0",
-    "pino": "^8.19.0"
+    "pino": "^8.19.0",
+    "zod": "^3.23.0"
   },
   "devDependencies": {
     "tsx": "^4.7.0",

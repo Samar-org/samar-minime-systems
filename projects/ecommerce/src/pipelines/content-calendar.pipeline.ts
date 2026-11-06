@@ -1,7 +1,7 @@
-import { createLogger } from '@samar/observability';
+import { getLogger } from '@samar/observability';
 import type { EcommerceConfig } from '../config.js';
 
-const logger = createLogger('content-calendar-pipeline');
+const logger = getLogger('content-calendar-pipeline');
 
 export async function contentCalendarPipeline(
   config: EcommerceConfig,

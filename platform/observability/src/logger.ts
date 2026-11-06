@@ -4,14 +4,7 @@ let logLevel = process.env['LOG_LEVEL'] || 'info';
 
 const baseLogger = pino({
   level: logLevel,
-  transport: {
-    target: 'pino-pretty',
-    options: {
-      colorize: true,
-      singleLine: false,
-      translateTime: 'SYS:standard',
-    },
-  },
+  redact: { paths: ['apiKey', 'authorization', 'password', 'secret', 'token'], censor: '[REDACTED]' },
 });
 
 const loggers: Record<string, pino.Logger> = {};

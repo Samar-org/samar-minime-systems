@@ -15,10 +15,11 @@ export interface TokenPayload {
 
 export class AuthService {
   private jwtSecret: string;
-  private jwtExpiry: string = '24h';
+  private jwtExpiry: number = 86400;
 
   constructor() {
-    this.jwtSecret = process.env.JWT_SECRET || 'dev-secret';
+    if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) throw new Error('JWT_SECRET must be securely configured');
+    this.jwtSecret = process.env.JWT_SECRET;
   }
 
   generateToken(payload: Omit<TokenPayload, 'iat' | 'exp'>): string {
@@ -37,7 +38,7 @@ export class AuthService {
 
   verifyToken(token: string): TokenPayload {
     try {
-      const decoded = jwt.verify(token, this.jwtSecret) as TokenPayload;
+      const decoded = jwt.verify(token, this.jwtSecret, { algorithms: ['HS256'] }) as TokenPayload;
       return decoded;
     } catch (error) {
       logger.error('Token verification failed', error);

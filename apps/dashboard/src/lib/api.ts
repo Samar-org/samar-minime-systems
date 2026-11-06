@@ -12,7 +12,14 @@ export async function apiFetch<T>(path: string, options?: RequestInit): Promise<
   return res.json();
 }
 
+// These routes remain unavailable until the scoped backend is configured.
 export const api = {
+  projects: {list: () => apiFetch('/projects')},
+  workflows: {list: () => apiFetch('/workflows')},
+  campaigns: {list: () => apiFetch('/campaigns')},
+  crm: {list: () => apiFetch('/crm')},
+  creative: {list: () => apiFetch('/creative')},
+  metrics: {summary: () => apiFetch<{agents:number;projects:number;workflows:number;cost:number}>('/metrics/summary'),costs: () => apiFetch('/metrics/costs')},
   agents: {
     list: () => apiFetch('/agents'),
     tierSummary: () => apiFetch('/agents/tier-summary'),

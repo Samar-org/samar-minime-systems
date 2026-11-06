@@ -1,8 +1,8 @@
-import { createLogger } from '@samar/observability';
+import { getLogger } from '@samar/observability';
 import { loadEcommerceConfig } from './config.js';
 import { EcommerceOrchestrator } from './orchestrator.js';
 
-const logger = createLogger('ecommerce-project');
+const logger = getLogger('ecommerce-project');
 
 async function main() {
   try {

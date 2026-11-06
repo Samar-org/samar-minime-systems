@@ -1,30 +1,16 @@
-import { Worker } from '@temporalio/worker';
+import { NativeConnection, Worker } from '@temporalio/worker';
+import { fileURLToPath } from 'node:url';
 import * as activities from './activities.js';
- import * as workflows from './workflows.js';
-import { createLogger } from '@samar/observability';
-
-const logger = createLogger('temporal-worker');
-
-const TEMPORAL_ADDRESS = process.env.TEMPORAL_ADDRESS ?? 'localhost:7233';
-const TEMPORAL_NAMESPACE = process.env.TEMPORAL_NAMESPACE ?? 'samar-minime';
-const TASK_QUEUE = process.env.TASK_QUEUE ?? 'samar-minime-main';
-
-async function run() {
-  const worker = await Worker.create({
-    workflowsPath: new URL('./workflows.js', import.meta.url).pathname,
-    activitiesPath: new URL('./activities.js', import.meta.url).pathname,
-    taskQueue: TASK_QUEUE,
-    namespace: TEMPORAL_NAMESPACE,
-    serverOptions: {
-      address: TEMPORAL_ADDRESS,
-    },
-  });
-
-  logger.info(`Worker started on task queue: ${TASK_QUEUE}`);
+import { getLogger } from '@samar/observability';
+const logger=getLogger('temporal-worker');
+/** Recovery spec §3: connection and activity bindings use the installed Temporal API. */
+async function run():Promise<void>{
+ if(process.env.ENABLE_AGENT_EXECUTION!=='true')throw new Error('Worker execution is disabled pending scoped integration acceptance');
+ const connection=await NativeConnection.connect({address:process.env.TEMPORAL_ADDRESS??'localhost:7233'});
+ try{
+  const worker=await Worker.create({connection,workflowsPath:fileURLToPath(new URL('./workflows.js',import.meta.url)),activities,
+   taskQueue:process.env.TASK_QUEUE??'samar-minime-main',namespace:process.env.TEMPORAL_NAMESPACE??'samar-minime'});
   await worker.run();
+ }finally{await connection.close();}
 }
-
-run().catch((err) => {
-  logger.error(err);
-  process.exit(1);
-});
+run().catch(error=>{logger.error({error:error instanceof Error?error.message:'Worker startup failed'},'Worker stopped');process.exitCode=1;});

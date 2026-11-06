@@ -1,11 +1,8 @@
 import type { FastifyInstance } from 'fastify';
+import { unavailable } from '../middleware/unavailable.js';
 
+// The authoritative Headquarters owner must be connected before this route is enabled.
 export async function agentRoutes(fastify: FastifyInstance) {
-  fastify.get('/', async (_request, _reply) => {
-    return { agents: [] };
-  });
-
-  fastify.post('/', async (request, _reply) => {
-    return { id: 'agent-1', ...request.body };
-  });
+  fastify.get('/', unavailable);
+  fastify.post('/', unavailable);
 }

@@ -4,7 +4,7 @@ import { getLogger } from '@samar/observability';
 const logger = getLogger('model-registry');
 
 /**
- * Default MODEL_REGISTRY consumed by ModelRouter.
+ * Historical MODEL_REGISTRY, disabled until an explicitly verified catalog is supplied.
  * Extend or override by constructing ModelRouter with a custom registry.
  */
 export const MODEL_REGISTRY: ModelSpec[] = [
@@ -17,7 +17,8 @@ export const MODEL_REGISTRY: ModelSpec[] = [
     costPerOutputToken: 0.0000006,
     supportsJson: true,
     supportsVision: true,
-    enabled: true,
+    enabled: false,
+    maxTokens: 0,
   },
   {
     id: 'gpt-4o',
@@ -28,7 +29,8 @@ export const MODEL_REGISTRY: ModelSpec[] = [
     costPerOutputToken: 0.000015,
     supportsJson: true,
     supportsVision: true,
-    enabled: true,
+    enabled: false,
+    maxTokens: 0,
   },
   {
     id: 'claude-3-5-sonnet-latest',
@@ -39,7 +41,8 @@ export const MODEL_REGISTRY: ModelSpec[] = [
     costPerOutputToken: 0.000015,
     supportsJson: true,
     supportsVision: true,
-    enabled: true,
+    enabled: false,
+    maxTokens: 0,
   },
   {
     id: 'llama-3.1-8b-instant',
@@ -50,7 +53,8 @@ export const MODEL_REGISTRY: ModelSpec[] = [
     costPerOutputToken: 0,
     supportsJson: true,
     supportsVision: false,
-    enabled: true,
+    enabled: false,
+    maxTokens: 0,
   },
   {
     id: 'llama-3.3-70b-versatile',
@@ -61,9 +65,10 @@ export const MODEL_REGISTRY: ModelSpec[] = [
     costPerOutputToken: 0,
     supportsJson: true,
     supportsVision: false,
-    enabled: true,
+    enabled: false,
+    maxTokens: 0,
   },
-] as any;
+];
 
 export interface ModelMetadata {
   model: string;
@@ -95,7 +100,7 @@ export class ModelRegistry {
         inputCostPer1M: 0.15,
         outputCostPer1M: 0.60,
         supportedFormats: ['text', 'json'],
-        available: true,
+        available: false,
       },
       {
         model: 'gpt-4o',
@@ -106,7 +111,7 @@ export class ModelRegistry {
         inputCostPer1M: 5.0,
         outputCostPer1M: 15.0,
         supportedFormats: ['text', 'json'],
-        available: true,
+        available: false,
       },
       {
         model: 'claude-3-5-sonnet-latest',
@@ -117,7 +122,7 @@ export class ModelRegistry {
         inputCostPer1M: 3.0,
         outputCostPer1M: 15.0,
         supportedFormats: ['text', 'json'],
-        available: true,
+        available: false,
       },
       {
         model: 'llama-3.1-8b-instant',
@@ -128,7 +133,7 @@ export class ModelRegistry {
         inputCostPer1M: 0.0,
         outputCostPer1M: 0.0,
         supportedFormats: ['text', 'json'],
-        available: true,
+        available: false,
       },
     ];
 

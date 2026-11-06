@@ -1,7 +1,7 @@
-import { createLogger } from '@samar/observability';
+import { getLogger } from '@samar/observability';
 import type { MarketplaceConfig } from '../config.js';
 
-const logger = createLogger('marketplace-growth-pipeline');
+const logger = getLogger('marketplace-growth-pipeline');
 
 export async function marketplaceGrowthPipeline(
   config: MarketplaceConfig,

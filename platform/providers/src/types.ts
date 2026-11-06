@@ -4,6 +4,9 @@ export interface ChatMessage {
 }
 
 export interface CompletionRequest {
+  /** Bounded execution disables ambiguous billable retries. */
+  maxAttempts?: 1;
+  signal?: AbortSignal;
   model: string;
   messages: ChatMessage[];
   maxTokens?: number;

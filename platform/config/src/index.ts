@@ -1,7 +1,5 @@
 import { z } from 'zod';
-import dotenv from 'dotenv';
 
-dotenv.config();
 
 const ConfigSchema = z.object({
   // Database
@@ -16,12 +14,12 @@ const ConfigSchema = z.object({
   // Llama Fleet (hosted vLLM cluster)
   LLAMA_FLEET_URL: z.string().url().optional(),
   LLAMA_FLEET_API_KEY: z.string().optional(),
-  LLAMA_FLEET_ENABLED: z.coerce.boolean().default(false),
+  LLAMA_FLEET_ENABLED: z.preprocess(value => value === undefined ? false : value === 'true' ? true : value === 'false' ? false : value, z.boolean()),
 
   // S3 Storage
   S3_ENDPOINT: z.string().url().default('http://localhost:9000'),
-  S3_ACCESS_KEY: z.string().default('minioadmin'),
-  S3_SECRET_KEY: z.string().default('minioadmin'),
+  S3_ACCESS_KEY: z.string().min(1),
+  S3_SECRET_KEY: z.string().min(1),
   S3_BUCKET: z.string().default('samar-artifacts'),
   S3_REGION: z.string().default('us-east-1'),
 

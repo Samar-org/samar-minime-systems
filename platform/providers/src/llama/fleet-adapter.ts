@@ -63,18 +63,22 @@ export class LlamaFleetAdapter implements ProviderAdapter {
         apiKey: 'not-needed',
         baseURL: this.config.ollamaUrl,
         timeout: 60_000,
+        maxRetries: 0,
       });
     }
   }
 
   async complete(request: CompletionRequest): Promise<CompletionResponse> {
     // Try fleet first
-    for (let attempt = 0; attempt <= this.config.maxRetries; attempt++) {
+    const retries = request.maxAttempts === 1 ? 0 : this.config.maxRetries;
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      request.signal?.throwIfAborted();
       if (this.fleetHealthy || attempt === 0) {
         try {
           return await this._executeOnFleet(request);
         } catch (error) {
-          const isLastRetry = attempt === this.config.maxRetries;
+          if (request.signal?.aborted || request.maxAttempts === 1) throw error;
+          const isLastRetry = attempt === retries;
           if (isLastRetry) {
             this.fleetHealthy = false;
           }
@@ -102,7 +106,7 @@ export class LlamaFleetAdapter implements ProviderAdapter {
       temperature: request.temperature ?? 0.7,
       response_format: request.responseFormat === 'json' ? { type: 'json_object' } : undefined,
       stop: request.stop,
-    });
+    }, { signal: request.signal });
 
     const latencyMs = Date.now() - start;
     const choice = response.choices[0];
@@ -133,7 +137,7 @@ export class LlamaFleetAdapter implements ProviderAdapter {
       max_tokens: request.maxTokens ?? 4096,
       temperature: request.temperature ?? 0.7,
       stop: request.stop,
-    });
+    }, { signal: request.signal });
 
     const latencyMs = Date.now() - start;
     const choice = response.choices[0];

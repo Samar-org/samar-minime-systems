@@ -17,8 +17,8 @@ export const ModelSpecSchema = z.object({
 export const RoutingRequestSchema = z.object({
   taskType: z.string(),
   requiredTier: AgentTierSchema.optional(),
-  maxCostUsd: z.number().optional(),
-  retryCount: z.number().int().default(0),
+  maxCostUsd: z.number().finite().nonnegative().optional(),
+  retryCount: z.number().int().nonnegative().default(0),
   confidenceThreshold: z.number().min(0).max(100).default(70),
   requiresJson: z.boolean().default(true),
   requiresVision: z.boolean().default(false),
@@ -34,5 +34,5 @@ export const RoutingDecisionSchema = z.object({
 });
 
 export type ModelSpec = z.infer<typeof ModelSpecSchema>;
-export type RoutingRequest = z.infer<typeof RoutingRequestSchema>;
+export type RoutingRequest = z.input<typeof RoutingRequestSchema>;
 export type RoutingDecision = z.infer<typeof RoutingDecisionSchema>;

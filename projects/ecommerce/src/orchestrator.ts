@@ -1,10 +1,10 @@
-import { createLogger } from '@samar/observability';
+import { getLogger } from '@samar/observability';
 import type { EcommerceConfig } from './config.js';
 import { productLaunchPipeline } from './pipelines/product-launch.pipeline.js';
 import { campaignLaunchPipeline } from './pipelines/campaign-launch.pipeline.js';
 import { contentCalendarPipeline } from './pipelines/content-calendar.pipeline.js';
 
-const logger = createLogger('ecommerce-orchestrator');
+const logger = getLogger('ecommerce-orchestrator');
 
 export class EcommerceOrchestrator {
   constructor(private config: EcommerceConfig) {}

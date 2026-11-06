@@ -1,4 +1,4 @@
-# Headquarters orchestration recovery — 2026-11-05
+# Headquarters orchestration recovery — 2026-11-06
 
 Owner: headquarters implementation task. Development branch only; no database migrated,
 worker connected, provider call made or production deployment performed.
@@ -31,19 +31,25 @@ Worker uses NativeConnection, activities objects and normal exported async workf
 Type-only activity imports keep database/provider modules outside the workflow sandbox.
 Activities receive explicit project/workflow/task/configured-agent/budget fields. Pipeline
 errors mark workflow failure and propagate; no missing notification or metric activity is called.
-Activity retries are disabled until durable provider request idempotency is accepted.
+Activity retries remain disabled. The Headquarters dispatcher now makes one provider attempt,
+rejects replayed leases and records ambiguous billing as `uncertain`; it never treats a timeout
+as zero cost. Current OpenAI/Anthropic documentation did not establish a general Messages/Chat
+provider idempotency guarantee, so crash recovery marks expired attempts for human reconciliation
+instead of submitting provider work again.
 
 ## 4. Remaining release gates
 
 Execution defaults disabled. The legacy API, floating project budget and authorization model
 are not the authoritative HQ tenant/budget ledger. Do not enable until the scoped HQ run
 claim/settlement bridge, exact agent/policy versions, atomic reservations, audit and isolation
-are verified. Existing integration consumers require the new explicit task contract.
+are verified. The new dispatcher uses only a Supabase anon key plus a separate exact-scope machine
+session; it has no service-role or Prisma authority. Existing legacy consumers remain unavailable.
 Artifact upload failures cannot be reported as persisted. External notification delivery is
 unconfigured; in-app enqueue returns sent=false. Heuristic output scoring is explicitly not
 independent QA. Credentials come only from approved runtime injection; no dotenv loading.
 
-Server access remains absent and the DigitalOcean browser console returns Site Unavailable.
+Strict-host-key SSH access to the intended Droplet is verified for `hqdeploy`, but that account
+correctly lacks Docker and sudo. No privileged deployment unit or reverse proxy exists yet.
 Cloudflare, staging identity/database, sandbox workers, monitoring and restoration remain
 unverified. General deployment authorization has been received; technical gates remain.
 
@@ -58,7 +64,7 @@ Estate SOPS is the secrets source of record. Historical Doppler examples in the 
 are stale and must not be used to connect this service. Only approved runtime injection is used
 by recovered modules. Headquarters onboarding requires a Samar Suites binding per project, three
 environments and separate SOPS metadata references. Live project synchronization and the
-project/environment-scoped run and secret-injection bridge remain unimplemented release gates.
+project/environment-scoped runtime identities still require secure provisioning and live acceptance.
 
 ## Publication and CI follow-up
 
@@ -110,4 +116,10 @@ contracts and denial tests document this intentional remaining integration work.
 Image responses are now schema-validated and malformed/refused responses raise a generic
 error rather than echoing provider response text. No Gemini call was made.
 
-Final local CI-recovery evidence: all 35 workspace TypeScript configurations checked; all 73 tests across nine files passed through the fresh-checkout-aware root runner; dashboard production build passed; workflow YAML and git diff checks passed. The limited credential-pattern scan found no matches in the 59 changed/new files. GitHub CI results remain separate from local results and are recorded in draft PR #1.
+Final recovery baseline: all 35 workspace TypeScript configurations checked; all 73 tests across
+nine files passed through the fresh-checkout-aware root runner; dashboard production build passed.
+The Headquarters increment adds fixed Auth/PostgREST transport, digest-addressed agent profiles,
+actual integer-cent usage settlement, immutable S3 evidence before success, expired-attempt recovery,
+and explicit uncertainty reporting. All 81 tests across 11 files, all 35 workspace TypeScript
+configurations and the worker dependency build pass locally; GitHub CI remains separate evidence
+on draft PR #1.

@@ -123,3 +123,12 @@ actual integer-cent usage settlement, immutable S3 evidence before success, expi
 and explicit uncertainty reporting. All 81 tests across 11 files, all 35 workspace TypeScript
 configurations and the worker dependency build pass locally; GitHub CI remains separate evidence
 on draft PR #1.
+
+## Estate registration and nested-checkout build boundary — 2026-11-08
+
+The repository is now registered as `headquarters-orchestration` in the Samar Suites estate and
+its agent instructions are generated from methodology v9.1.0. The retired white-glove-setup and
+Doppler guidance no longer controls this branch. `apps/dashboard/next.config.mjs` also makes the
+dashboard own its Next.js configuration: without it, a nested checkout climbed into the parent
+Call Center repository and attempted to load that unrelated Next 15 TypeScript config under Next 14.
+This is build isolation only; it does not enable a worker, provider call or deployment.

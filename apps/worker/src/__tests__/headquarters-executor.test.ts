@@ -27,4 +27,13 @@ describe('Headquarters provider executor',()=>{
   const artifactFailure=new HeadquartersExecutor(environment,{runtime:{execute:vi.fn(async()=>output)} as never,s3:{send:vi.fn(async()=>{throw new Error('storage detail');})} as never});
   await expect(artifactFailure.execute(lease)).rejects.toMatchObject({knownCostCents:4,reason:'artifact_persistence_failed'} satisfies Partial<UncertainExecutionError>);
  });
+ it('emits only validated audit observations and fails invalid provider reports truthfully',async()=>{
+  const auditLease={...lease,auditContext:{workOrderId:31,period:'2099-01',area:'performance' as const}};
+  const report={summary:'Source unavailable.',observations:[{metric:'largest_contentful_paint_ms',state:'unavailable',value:null,unit:'ms',observedAt:'2099-01-05T12:00:00Z',reason:'Approved measurement source was unavailable'}]};
+  const execute=vi.fn(async()=>({...output,content:JSON.stringify(report)})),send=vi.fn(async()=>({}));
+  const receipt=await new HeadquartersExecutor(environment,{runtime:{execute} as never,s3:{send} as never}).execute(auditLease);
+  expect(receipt.outcome).toBe('completed');expect(receipt.auditReport).toEqual(report);expect(execute.mock.calls[0][1].prompt).toContain('Never invent a value or evidence');
+  const invalid=new HeadquartersExecutor(environment,{runtime:{execute:vi.fn(async()=>({...output,content:'not-json'}))} as never,s3:{send:vi.fn(async()=>({}))} as never});
+  const failed=await invalid.execute(auditLease);expect(failed).toMatchObject({outcome:'failed',costCents:4});expect(failed).not.toHaveProperty('auditReport');
+ });
 });

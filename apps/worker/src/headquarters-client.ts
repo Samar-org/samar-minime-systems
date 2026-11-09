@@ -1,6 +1,10 @@
 import { randomUUID } from 'node:crypto';
 
 export type HeadquartersEnvironment = 'development' | 'staging' | 'production';
+export type HeadquartersAuditArea = 'performance'|'security'|'seo'|'geo'|'technology';
+export interface HeadquartersAuditContext {workOrderId:number;period:string;area:HeadquartersAuditArea;}
+export interface HeadquartersAuditObservation {metric:string;state:'measured'|'estimated'|'unavailable';value?:number|null;unit:string;observedAt:string;evidenceRef?:string|null;method?:string|null;reason?:string|null;baselineValue?:number|null;baselineEvidenceRef?:string|null;}
+export interface HeadquartersAuditReport {summary:string;observations:HeadquartersAuditObservation[];}
 export interface HeadquartersLease {
   replayed: false;
   runId: number;
@@ -16,6 +20,7 @@ export interface HeadquartersLease {
   agentVersion: number;
   organizationPolicyVersion: number;
   deadlineAt: string;
+  auditContext?: HeadquartersAuditContext;
 }
 export interface HeadquartersReceipt {
   runId: number;
@@ -24,8 +29,9 @@ export interface HeadquartersReceipt {
   costCents: number;
   evidenceRef: string;
   artifactDigest: string;
+  auditReport?: HeadquartersAuditReport;
 }
-export interface HeadquartersSettlement {runId:number;status:'completed'|'failed'|'reconciliation_required';settled:boolean;costCents:number;}
+export interface HeadquartersSettlement {runId:number;status:'completed'|'failed'|'reconciliation_required';settled:boolean;costCents:number;reportId?:number|null;}
 export interface HeadquartersUncertainty {runId:number;status:'uncertain';knownCostCents:number|null;}
 export interface HeadquartersClientConfig {
   url:string;anonKey:string;email:string;password:string;projectId:number;environment:HeadquartersEnvironment;
@@ -41,6 +47,7 @@ const digest=/^sha256:[a-f0-9]{64}$/;
 const currency=/^[A-Z]{3}$/;
 const environments=new Set(['development','staging','production']);
 const capabilities=new Set(['monitor','triage','impact_assessment','test','code_fix','pull_request','independent_qa']);
+const auditAreas=new Set(['performance','security','seo','geo','technology']);
 
 function parseOrigin(value:string):URL{
   let origin:URL;try{origin=new URL(value);}catch{throw new HeadquartersTransportError();}
@@ -83,7 +90,7 @@ export class HeadquartersClient {
     if(typeof data.access_token!=='string'||data.access_token.length<20||!positive(data.expires_in))throw new HeadquartersTransportError();
     this.accessToken=data.access_token;this.expiresAt=Date.now()+data.expires_in*1000;
   }
-  private async rpc(name:'hq_claim_next_run'|'hq_settle_run'|'hq_report_run_uncertainty'|'hq_report_expired_run_uncertainty',body:Record<string,unknown>):Promise<unknown>{
+  private async rpc(name:'hq_claim_next_run'|'hq_get_claimed_audit_context'|'hq_settle_run'|'hq_settle_audit_run'|'hq_report_run_uncertainty'|'hq_report_expired_run_uncertainty',body:Record<string,unknown>):Promise<unknown>{
     await this.authenticate();
     let response:Response;
     try{response=await this.fetcher(new URL(`/rest/v1/rpc/${name}`,this.origin),{method:'POST',redirect:'error',signal:AbortSignal.timeout(10_000),headers:{apikey:this.config.anonKey,Authorization:`Bearer ${this.accessToken}`,'Content-Type':'application/json'},body:JSON.stringify(body)});}
@@ -95,7 +102,12 @@ export class HeadquartersClient {
     const attemptId=randomUUID();
     const data=await this.rpc('hq_claim_next_run',{p_attempt_id:attemptId});
     if(data===null)return null;
-    return parseLease(data,{projectId:this.config.projectId,environment:this.config.environment,attemptId});
+    const lease=parseLease(data,{projectId:this.config.projectId,environment:this.config.environment,attemptId});
+    const context=await this.rpc('hq_get_claimed_audit_context',{p_run_id:lease.runId,p_attempt_id:lease.attemptId});
+    if(context===null)return lease;
+    if(!context||typeof context!=='object')throw new HeadquartersTransportError();const value=context as Record<string,unknown>;
+    if(!positive(value.workOrderId)||typeof value.period!=='string'||!/^[0-9]{4}-(0[1-9]|1[0-2])$/.test(value.period)||typeof value.area!=='string'||!auditAreas.has(value.area)||Object.keys(value).some(key=>!['workOrderId','period','area'].includes(key)))throw new HeadquartersTransportError();
+    return {...lease,auditContext:value as unknown as HeadquartersAuditContext};
   }
   async settle(receipt:HeadquartersReceipt):Promise<HeadquartersSettlement>{
     if(!positive(receipt.runId)||!uuid.test(receipt.attemptId)||!['completed','failed'].includes(receipt.outcome)||!cents(receipt.costCents)||
@@ -106,6 +118,15 @@ export class HeadquartersClient {
     const validStatus=['completed','failed','reconciliation_required'].includes(String(result.status));
     if(result.runId!==receipt.runId||result.costCents!==receipt.costCents||!validStatus||typeof result.settled!=='boolean'||
      result.settled!==(result.status!=='reconciliation_required')||(receipt.outcome==='failed'&&result.status==='completed'))throw new HeadquartersTransportError();
+    return result as unknown as HeadquartersSettlement;
+  }
+  async settleAudit(lease:HeadquartersLease,receipt:HeadquartersReceipt):Promise<HeadquartersSettlement>{
+    const context=lease.auditContext,report=receipt.auditReport;
+    if(!context||!report||receipt.outcome!=='completed'||receipt.runId!==lease.runId||receipt.attemptId!==lease.attemptId||!positive(receipt.runId)||!uuid.test(receipt.attemptId)||!cents(receipt.costCents)||typeof receipt.evidenceRef!=='string'||receipt.evidenceRef.length<3||receipt.evidenceRef.length>1000||!digest.test(receipt.artifactDigest)||typeof report.summary!=='string'||report.summary.length<3||report.summary.length>5000||!Array.isArray(report.observations)||report.observations.length<1||report.observations.length>200)throw new HeadquartersTransportError();
+    const encoded=JSON.stringify(report);if(Buffer.byteLength(encoded,'utf8')>32768)throw new HeadquartersTransportError();
+    const data=await this.rpc('hq_settle_audit_run',{p_run_id:receipt.runId,p_attempt_id:receipt.attemptId,p_cost_cents:receipt.costCents,p_evidence_ref:receipt.evidenceRef,p_artifact_digest:receipt.artifactDigest,p_work_order_id:context.workOrderId,p_summary:report.summary,p_observations:report.observations});
+    if(!data||typeof data!=='object')throw new HeadquartersTransportError();const result=data as Record<string,unknown>;
+    if(result.runId!==receipt.runId||result.costCents!==receipt.costCents||!['completed','reconciliation_required'].includes(String(result.status))||typeof result.settled!=='boolean'||result.settled!==(result.status==='completed')||(result.status==='completed'?!positive(result.reportId):result.reportId!==null))throw new HeadquartersTransportError();
     return result as unknown as HeadquartersSettlement;
   }
   async reportUncertain(lease:HeadquartersLease,input:{reason:'provider_outcome_unknown'|'artifact_persistence_failed';knownCostCents:number|null;evidenceRef:string;providerRequestId:string|null}):Promise<HeadquartersUncertainty>{
@@ -132,5 +153,7 @@ export async function dispatchOnce(client:HeadquartersClient,execute:(lease:Head
   let receipt:HeadquartersReceipt;
   try{receipt=await execute(lease);}catch(error){if(error instanceof UncertainExecutionError)return client.reportUncertain(lease,error);throw error;}
   if(receipt.runId!==lease.runId||receipt.attemptId!==lease.attemptId)throw new HeadquartersTransportError();
+  if(lease.auditContext&&receipt.outcome==='completed')return client.settleAudit(lease,receipt);
+  if(receipt.auditReport)throw new HeadquartersTransportError();
   return client.settle(receipt);
 }

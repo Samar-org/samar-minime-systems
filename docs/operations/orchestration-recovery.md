@@ -132,3 +132,13 @@ Doppler guidance no longer controls this branch. `apps/dashboard/next.config.mjs
 dashboard own its Next.js configuration: without it, a nested checkout climbed into the parent
 Call Center repository and attempted to load that unrelated Next 15 TypeScript config under Next 14.
 This is build isolation only; it does not enable a worker, provider call or deployment.
+
+## Atomic monthly-audit delivery — 2026-11-08
+
+The dispatcher now reads only the current exact-attempt monthly work-order context, requires a
+bounded JSON report with explicit measured, estimated or unavailable states, and calls the control
+plane's atomic settlement/report owner. Invalid provider report output is retained in immutable
+evidence and settles as a failed run with actual cost; it is never presented as a successful audit.
+The worker-focused suite has 13 passing tests. Live execution remains disabled until control-plane
+migration 0029, scoped identities, approved observation sources and runtime evidence storage are
+provisioned and accepted.

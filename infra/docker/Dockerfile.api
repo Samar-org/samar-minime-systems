@@ -1,20 +1,30 @@
-FROM node:20-alpine
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
-COPY packages ./packages
+RUN apk add --no-cache openssl
+RUN corepack enable && corepack prepare pnpm@9.0.0 --activate
 
-# Install dependencies
-RUN npm ci
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json turbo.json ./
+RUN pnpm fetch
 
-# Copy application code
-COPY . .
+COPY apps ./apps
+COPY modules ./modules
+COPY platform ./platform
+COPY projects ./projects
 
-# Build application
-RUN npm run build --workspaces --if-present
+RUN pnpm install --offline --frozen-lockfile
+RUN pnpm turbo build --filter=@samar/api...
 
+FROM node:20-alpine AS runtime
+
+ENV NODE_ENV=production
+WORKDIR /app
+
+RUN apk add --no-cache openssl
+COPY --from=builder --chown=node:node /app /app
+
+USER node
 EXPOSE 3000
 
-CMD ["npm", "run", "start:api"]
+CMD ["node", "apps/api/dist/server.js"]

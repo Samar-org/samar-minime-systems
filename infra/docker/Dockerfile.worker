@@ -1,10 +1,33 @@
-FROM node:20-alpine
+FROM node:20-bookworm-slim AS builder
 
 WORKDIR /app
 
-COPY package*.json ./
-COPY . .
+RUN apt-get update \
+    && apt-get install --yes --no-install-recommends ca-certificates openssl \
+    && rm -rf /var/lib/apt/lists/*
+RUN corepack enable && corepack prepare pnpm@9.0.0 --activate
 
-RUN npm ci && npm run build --workspaces --if-present
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json turbo.json ./
+RUN pnpm fetch
 
-CMD ["npm", "run", "start:worker"]
+COPY apps ./apps
+COPY modules ./modules
+COPY platform ./platform
+COPY projects ./projects
+
+RUN pnpm install --offline --frozen-lockfile
+RUN pnpm turbo build --filter=@samar/worker...
+
+FROM node:20-bookworm-slim AS runtime
+
+ENV NODE_ENV=production
+WORKDIR /app
+
+RUN apt-get update \
+    && apt-get install --yes --no-install-recommends ca-certificates openssl \
+    && rm -rf /var/lib/apt/lists/*
+COPY --from=builder --chown=node:node /app /app
+
+USER node
+
+CMD ["node", "apps/worker/dist/index.js"]

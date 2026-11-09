@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
@@ -30,7 +30,7 @@ jobs:
           version: 9.0.0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: '20'
           cache: 'pnpm'
@@ -46,7 +46,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
@@ -54,7 +54,7 @@ jobs:
           version: 9.0.0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: '20'
           cache: 'pnpm'
@@ -66,7 +66,7 @@ jobs:
         run: pnpm run test
 
       - name: Upload coverage
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v5
         if: always()
 
   build:
@@ -75,7 +75,7 @@ jobs:
     needs: [lint, test]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
@@ -83,7 +83,7 @@ jobs:
           version: 9.0.0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: '20'
           cache: 'pnpm'
@@ -95,7 +95,7 @@ jobs:
         run: pnpm turbo build
 
       - name: Cache Turbo outputs
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: .turbo
           key: turbo-${{ github.ref }}-${{ github.sha }}
@@ -107,7 +107,6 @@ jobs:
     name: Docker Build
     runs-on: ubuntu-latest
     needs: [lint, test]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     permissions:
       contents: read
       packages: write
@@ -125,13 +124,14 @@ jobs:
             context: .
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v4
 
       - name: Log in to Container Registry
-        uses: docker/login-action@v2
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/login-action@v4
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ env.REGISTRY_USERNAME }}
@@ -139,7 +139,7 @@ jobs:
 
       - name: Extract metadata
         id: meta
-        uses: docker/metadata-action@v4
+        uses: docker/metadata-action@v6
         with:
           images: ${{ env.REGISTRY }}/${{ github.repository }}/${{ matrix.image.name }}
           tags: |
@@ -149,25 +149,62 @@ jobs:
             type=sha
 
       - name: Build and push Docker image
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v7
         with:
           context: ${{ matrix.image.context }}
           file: ${{ matrix.image.dockerfile }}
-          push: true
+          load: true
+          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      - name: Verify hardened image contract
+        env:
+          IMAGE_TAGS: ${{ steps.meta.outputs.tags }}
+          IMAGE_NAME: ${{ matrix.image.name }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          image="$(printf '%s\n' "$IMAGE_TAGS" | head -n 1)"
+          test "$(docker inspect --format '{{.Config.User}}' "$image")" = "node"
+          case "$IMAGE_NAME" in
+            api)
+              name="orchestration-api-smoke"
+              trap 'docker rm --force "$name" >/dev/null 2>&1 || true' EXIT
+              docker run --detach --name "$name" --read-only --tmpfs /tmp:rw,noexec,nosuid,size=16m --security-opt no-new-privileges --cap-drop ALL --publish 127.0.0.1::3000 "$image"
+              port="$(docker port "$name" 3000/tcp | awk -F: '{print $NF}')"
+              for attempt in {1..20}; do curl --fail --silent "http://127.0.0.1:${port}/health" && break; sleep 1; done
+              test "$(curl --silent --output /tmp/ready.json --write-out '%{http_code}' "http://127.0.0.1:${port}/health/ready")" = "503"
+              ;;
+            dashboard)
+              name="orchestration-dashboard-smoke"
+              trap 'docker rm --force "$name" >/dev/null 2>&1 || true' EXIT
+              docker run --detach --name "$name" --read-only --tmpfs /tmp:rw,noexec,nosuid,size=16m --security-opt no-new-privileges --cap-drop ALL --publish 127.0.0.1::3000 "$image"
+              port="$(docker port "$name" 3000/tcp | awk -F: '{print $NF}')"
+              for attempt in {1..20}; do curl --fail --silent "http://127.0.0.1:${port}/" >/dev/null && break; sleep 1; done
+              curl --fail --silent "http://127.0.0.1:${port}/" >/dev/null
+              ;;
+            worker)
+              set +e
+              output="$(docker run --rm --read-only --tmpfs /tmp:rw,noexec,nosuid,size=16m --security-opt no-new-privileges --cap-drop ALL "$image" 2>&1)"
+              status=$?
+              set -e
+              test "$status" = "1"
+              grep --fixed-strings "Worker execution is disabled pending scoped integration acceptance" <<<"$output"
+              ;;
+          esac
+
   orchestration-contracts:
     name: Orchestration contracts (execution disabled)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v4
         with:
           version: 9.0.0
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '20'
           cache: pnpm

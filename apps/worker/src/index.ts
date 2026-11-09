@@ -1,11 +1,10 @@
-import { NativeConnection, Worker } from '@temporalio/worker';
 import { fileURLToPath } from 'node:url';
-import * as activities from './activities.js';
 import { getLogger } from '@samar/observability';
 const logger=getLogger('temporal-worker');
 /** Recovery spec §3: connection and activity bindings use the installed Temporal API. */
 async function run():Promise<void>{
  if(process.env.ENABLE_AGENT_EXECUTION!=='true')throw new Error('Worker execution is disabled pending scoped integration acceptance');
+ const [{NativeConnection,Worker},activities]=await Promise.all([import('@temporalio/worker'),import('./activities.js')]);
  const connection=await NativeConnection.connect({address:process.env.TEMPORAL_ADDRESS??'localhost:7233'});
  try{
   const worker=await Worker.create({connection,workflowsPath:fileURLToPath(new URL('./workflows.js',import.meta.url)),activities,

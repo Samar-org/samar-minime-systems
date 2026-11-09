@@ -142,3 +142,22 @@ evidence and settles as a failed run with actual cost; it is never presented as 
 The worker-focused suite has 13 passing tests and control-plane migration 0029 is hosted with clear
 schema lint. Live execution remains disabled until scoped identities, approved observation sources
 and runtime evidence storage are provisioned and accepted.
+
+## Main image recovery — 2026-11-09
+
+The first protected-main run after PR #1 exposed a release-only defect that pull-request CI did
+not exercise: the three legacy Dockerfiles used npm against a pnpm workspace, the API image copied
+a nonexistent `packages/` directory, and the dashboard image expected a nonexistent static
+`dist/` output. The image owners now install the locked pnpm workspace, build the exact app and
+its workspace dependencies, preserve workspace links in the runtime layer, and run as the
+unprivileged `node` user. Dashboard uses the actual Next server output rather than an invented
+nginx static export. The worker uses Debian slim because Temporal's native bridge requires glibc;
+the prior Alpine runtime could not load it. Disabled startup now checks the execution gate before
+loading activities or their database/provider dependencies, so an unconfigured image fails for the
+intended gate rather than asking for unrelated credentials. This image repair does not enable
+workers or establish a deployment target.
+
+The clean image build also exposed host incremental TypeScript metadata entering Docker while the
+corresponding ignored `dist/` output did not. That could make `tsc` skip required declarations and
+made image results depend on the workstation's prior builds. The Docker context now excludes all
+`*.tsbuildinfo` files so every image emits its declarations from the copied source.

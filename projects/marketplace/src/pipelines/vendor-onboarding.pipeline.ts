@@ -1,7 +1,7 @@
-import { createLogger } from '@samar/observability';
+import { getLogger } from '@samar/observability';
 import type { MarketplaceConfig } from '../config.js';
 
-const logger = createLogger('vendor-onboarding-pipeline');
+const logger = getLogger('vendor-onboarding-pipeline');
 
 export async function vendorOnboardingPipeline(
   config: MarketplaceConfig,

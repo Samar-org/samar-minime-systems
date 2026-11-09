@@ -2,29 +2,14 @@ import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { OpenAIAdapter } from '../openai/adapter.js';
 import type { CompletionRequest, CompletionResponse } from '../types.js';
 
-// Mock OpenAI SDK
-vi.mock('openai', () => {
-  return {
-    default: vi.fn().mockImplementation(() => ({
-      chat: {
-        completions: {
-          create: vi.fn(),
-        },
-      },
-    })),
-  };
-});
+// One hoisted SDK stub is shared by adapter construction and assertions; never require the real SDK.
+const mockCreate = vi.hoisted(() => vi.fn());
+vi.mock('openai', () => ({ default: vi.fn().mockImplementation(() => ({ chat: { completions: { create: mockCreate } } })) }));
 
 describe('OpenAIAdapter', () => {
   let adapter: OpenAIAdapter;
-  let mockCreate: ReturnType<typeof vi.fn>;
 
-  beforeEach(() => {
-    vi.clearAllMocks();
-    const OpenAI = require('openai').default;
-    const mockClient = new OpenAI({ apiKey: 'test-key' });
-    mockCreate = mockClient.chat.completions.create;
-  });
+  beforeEach(() => { vi.clearAllMocks(); mockCreate.mockReset(); });
 
   describe('complete()', () => {
     it('should return a properly formatted CompletionResponse on success', async () => {
@@ -149,6 +134,7 @@ describe('OpenAIAdapter', () => {
         model: 'gpt-4o',
         messages: [{ role: 'user', content: 'return JSON' }],
         responseFormat: 'json',
+        signal: new AbortController().signal,
       };
 
       const mockResponse = {
@@ -172,7 +158,7 @@ describe('OpenAIAdapter', () => {
       expect(mockCreate).toHaveBeenCalledWith(
         expect.objectContaining({
           response_format: { type: 'json_object' },
-        })
+        }), { signal: request.signal }
       );
     });
 
@@ -279,6 +265,7 @@ describe('OpenAIAdapter', () => {
       mockCreate.mockRejectedValue(serverError);
       adapter = new OpenAIAdapter('test-key');
 
+      vi.spyOn(adapter as any, '_sleep').mockResolvedValue(undefined);
       await expect(adapter.complete(request)).rejects.toThrow();
       // MAX_RETRIES = 3, so 1 initial + 3 retries = 4 attempts
       expect(mockCreate).toHaveBeenCalledTimes(4);

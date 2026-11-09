@@ -1,7 +1,7 @@
-import { createLogger } from '@samar/observability';
+import { getLogger } from '@samar/observability';
 import type { WarehouseConfig } from '../config.js';
 
-const logger = createLogger('onboarding-pack-pipeline');
+const logger = getLogger('onboarding-pack-pipeline');
 
 export async function onboardingPackPipeline(
   config: WarehouseConfig,

@@ -24,11 +24,14 @@ export class OpenAIAdapter implements ProviderAdapter {
   async complete(request: CompletionRequest): Promise<CompletionResponse> {
     let lastError: Error | null = null;
 
-    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    const retries = request.maxAttempts === 1 ? 0 : MAX_RETRIES;
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      request.signal?.throwIfAborted();
       try {
         return await this._execute(request);
       } catch (error: any) {
         lastError = error;
+        if (request.signal?.aborted) throw error;
 
         // Don't retry non-retryable errors
         const statusCode = error?.status ?? error?.response?.status;
@@ -37,7 +40,7 @@ export class OpenAIAdapter implements ProviderAdapter {
         }
 
         // Don't retry on last attempt
-        if (attempt === MAX_RETRIES) break;
+        if (attempt === retries) break;
 
         // Exponential backoff with jitter
         const delay = RETRY_BASE_DELAY_MS * Math.pow(2, attempt) + Math.random() * 500;
@@ -75,7 +78,7 @@ export class OpenAIAdapter implements ProviderAdapter {
       params.response_format = { type: 'json_object' };
     }
 
-    const response = await this.client.chat.completions.create(params);
+    const response = await this.client.chat.completions.create(params, { signal: request.signal });
     const latencyMs = Date.now() - start;
     const choice = response.choices[0];
 

@@ -32,7 +32,7 @@ export interface AgentMetrics {
 export interface AgentDefinition {
   id: string;
   name: string;
-  tier: 'DIRECTOR' | 'BUILDER' | 'UTILITY';
+  tier: 'DIRECTOR' | 'BUILDER' | 'UTILITY' | 'SPECIALIST';
   description: string;
   systemPrompt: string;
   capabilities: string[];

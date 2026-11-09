@@ -1,8 +1,8 @@
-import { createLogger } from '@samar/observability';
+import { getLogger } from '@samar/observability';
 import { loadClientPortalConfig } from './config.js';
 import { ClientPortalOrchestrator } from './orchestrator.js';
 
-const logger = createLogger('client-portal-project');
+const logger = getLogger('client-portal-project');
 
 async function main() {
   try {

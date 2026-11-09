@@ -1,7 +1,7 @@
-import { createLogger } from '@samar/observability';
+import { getLogger } from '@samar/observability';
 import type { WarehouseConfig } from '../config.js';
 
-const logger = createLogger('sop-generation-pipeline');
+const logger = getLogger('sop-generation-pipeline');
 
 export async function sopGenerationPipeline(
   config: WarehouseConfig,

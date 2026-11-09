@@ -1,8 +1,8 @@
-import { createLogger } from '@samar/observability';
+import { getLogger } from '@samar/observability';
 import { loadMarketplaceConfig } from './config.js';
 import { MarketplaceOrchestrator } from './orchestrator.js';
 
-const logger = createLogger('marketplace-project');
+const logger = getLogger('marketplace-project');
 
 async function main() {
   try {

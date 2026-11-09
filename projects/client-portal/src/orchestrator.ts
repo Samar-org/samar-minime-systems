@@ -1,9 +1,9 @@
-import { createLogger } from '@samar/observability';
+import { getLogger } from '@samar/observability';
 import type { ClientPortalConfig } from './config.js';
 import { clientOnboardingPipeline } from './pipelines/client-onboarding.pipeline.js';
 import { reportingPipeline } from './pipelines/reporting.pipeline.js';
 
-const logger = createLogger('client-portal-orchestrator');
+const logger = getLogger('client-portal-orchestrator');
 
 export class ClientPortalOrchestrator {
   constructor(private config: ClientPortalConfig) {}

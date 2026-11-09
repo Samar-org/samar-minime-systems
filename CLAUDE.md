@@ -1,87 +1,62 @@
-# samar-minime-systems -- Claude Instructions
+# 360ISS Headquarters Orchestration — Claude Instructions
 
-This repo follows the **Samar AI White Glove Project** -- canonical methodology at https://github.com/Samar-org/white-glove-setup
-Read methodology/ from that repo before doing any work.
-## First-session setup
-
-On your first session in this repo, fetch and read the methodology files from the central repo:
-
-1. Read `methodology/00-operating-mode.md` through `methodology/07-secrets-management.md` from `Samar-org/white-glove-setup`
-2. Follow all rules defined there — they are authoritative
-3. Use this file for repo-specific context only
+> **Methodology:** Samar AI White Glove — **v9.1.0**
+> **Hub:** `../../../00-Samar-suites/hub/` — read `CLAUDE.md`, `METHODOLOGY.md`, all
+> `rules/`, and this project's `registry.yaml` row first. They are authoritative.
+> **Precedence:** hub rules → declared domain rules → approved product specs → this file.
+> **Stage:** BUILD
+> **Live:** not deployed
+> **Registry:** `hub/registry.yaml` → `headquarters-orchestration`
 
 ---
 
-## Repo-specific stack
+## Stack
 
-<!-- Fill in the actual stack for this project -->
-
-- **Framework:** TypeScript, pnpm, Turbo, Fastify, Next.js, Temporal, PostgreSQL, Prisma, Redis, Docker
-- **Hosting:** none
-- **Database:** none
-- **Auth:** see repo code
-- **Payments:** none
-- **Other services:** see repo code
+- Language/runtime: TypeScript on Node.js 20+
+- Workspace: pnpm 9, Turbo 2
+- Services: Fastify API, Temporal worker, Next.js dashboard
+- Data/runtime libraries: Prisma, PostgreSQL, Redis, S3-compatible evidence storage, Docker
+- Headquarters boundary: scoped Supabase Auth/PostgREST transport; no service-role credential
 
 ---
 
-## Repo-specific business memory
+## Deployment fingerprint
 
-<!-- What does this project do? Who is it for? Key business rules. -->
-
-- **Project:** Samar MiniMe Systems
-- **Business:** personal
-- **Users:** see project docs
-- **Key business rules:**
-  - see project docs
-  - see project docs
+| | |
+|---|---|
+| Platform | None; intended isolated workers only, never Droplet 616230389 |
+| Prod URL | none |
+| Database | No owned live database; Headquarters uses Supabase project `ntdgdpkefmiffwqlzknl` through exact-scope machine identities |
+| CDN / DNS | none |
+| Email | none |
+| Payments | none |
+| Monitoring — errors | none; launch gate |
+| Monitoring — uptime | none |
+| Monitoring — logs | none beyond local structured logging |
+| CI/CD | GitHub Actions; main builds GHCR api/worker/dashboard images but deploys nowhere |
+| Auto-deploy on push? | no |
+| Branch protection | no, verified 2026-11-08 |
+| Rollback | Not applicable until an isolated worker target exists |
 
 ---
 
 ## Repo-specific gotchas
 
-<!-- Known quirks, legacy decisions, things that will surprise a new contributor. -->
-
-- none documented yet
-- none documented yet
-
----
-
-## Project stage
-
-Current stage: **BUILD** (see [Samar-org/white-glove-setup → projects/registry.yaml](https://github.com/Samar-org/white-glove-setup/blob/master/projects/registry.yaml))
-
-Security posture: Phase 1 -- speed over ceremony, shortcuts tracked in PUNCH_LIST.md
-
-## Deployment fingerprint
-
-<!-- Populated from registry.yaml. Update there, not here. -->
-
-| Layer | Value |
-|-------|-------|
-| **Platform** | none |
-| **Prod URL** | none |
-| **Database** | none (secret: `none`) |
-| **CDN/DNS** | none |
-| **Email** | none |
-| **Payments** | none |
-| **Monitoring** | errors: none, uptime: none, logs: none |
-| **CI/CD** | none, branch protection: false |
+- **[2026-11-05]** The original Prisma schema was missing; it is reconstructed from the
+  committed migration. Compare it with an authenticated database snapshot before any legacy
+  Prisma deployment. See `docs/operations/orchestration-recovery.md`.
+- **[2026-11-06]** Legacy API routes returned invented success and arbitrary workflow starts.
+  They deliberately return unavailable until the Headquarters claim/settlement owner is live.
+- **[2026-11-06]** Provider APIs do not establish a general idempotency guarantee here.
+  Replayed or ambiguous work goes to reconciliation; never repeat the provider call.
+- **[2026-11-08]** This repository is publicly visible. Never add runtime values or secret
+  material; visibility remediation must account for dependent access before it changes.
 
 ---
 
-## Secrets
+## Where the docs live
 
-This repo uses **Doppler** for secrets management.
-
-- **Local dev:** Run `doppler run -- claude` to start Claude Code with all secrets injected.
-- **Any process:** `doppler run -- pnpm dev`, `doppler run -- node server.js`, etc.
-- **CI/CD:** Secrets are auto-synced from Doppler to GitHub Org Secrets (Samar-org).
-- **Never commit secrets** to `.env` files. Doppler injects them at runtime.
-- **Doppler project:** `ai-personal-assistant` | **Config:** `dev` (local), `stg`, `prd`
-
----
-
-## Repo-specific context
-
-<!-- Preserved from existing repo documentation. Do not overwrite — append only. -->
+- Recovery and release gates: `docs/operations/orchestration-recovery.md`
+- Punch list: `PUNCH_LIST.md`
+- Root overview: `README.md`
+- Headquarters functional/technical specs: `Samar-org/callcenter/docs/specs/`

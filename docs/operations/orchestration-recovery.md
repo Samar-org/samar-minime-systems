@@ -139,6 +139,6 @@ The dispatcher now reads only the current exact-attempt monthly work-order conte
 bounded JSON report with explicit measured, estimated or unavailable states, and calls the control
 plane's atomic settlement/report owner. Invalid provider report output is retained in immutable
 evidence and settles as a failed run with actual cost; it is never presented as a successful audit.
-The worker-focused suite has 13 passing tests. Live execution remains disabled until control-plane
-migration 0029, scoped identities, approved observation sources and runtime evidence storage are
-provisioned and accepted.
+The worker-focused suite has 13 passing tests and control-plane migration 0029 is hosted with clear
+schema lint. Live execution remains disabled until scoped identities, approved observation sources
+and runtime evidence storage are provisioned and accepted.

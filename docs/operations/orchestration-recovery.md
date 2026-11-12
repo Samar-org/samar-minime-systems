@@ -161,3 +161,19 @@ The clean image build also exposed host incremental TypeScript metadata entering
 corresponding ignored `dist/` output did not. That could make `tsc` skip required declarations and
 made image results depend on the workstation's prior builds. The Docker context now excludes all
 `*.tsbuildinfo` files so every image emits its declarations from the copied source.
+
+## Production revalidation — 2026-11-12
+
+Current `main` (`adef63c2e073db6bb82ff81314006574374b5547`) passes the complete workspace
+typecheck and all 83 discovered tests. This revalidates the fail-closed dispatcher, single-attempt
+provider boundary, exact-scope claim/settlement client and uncertain-cost recovery; it does not
+establish a live worker.
+
+The Headquarters control-plane Droplet is now protected by its reviewed deployment owner and
+valid origin TLS, but it remains intentionally ineligible for orchestration work. It must not run
+generated or untrusted code, expose its Docker socket, or receive a broad provider/service-role
+credential. No existing isolated worker deployment target, exact project/environment machine
+identity, approved provider-price catalog or immutable runtime evidence store has been accepted.
+Execution therefore remains disabled. Enabling it requires an existing approved isolated target
+or separate infrastructure authorization; the control-plane deployment cannot be used as a
+workaround.

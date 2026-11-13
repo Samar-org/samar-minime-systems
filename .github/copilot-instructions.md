@@ -28,6 +28,14 @@ editing this file.
    strategy, the conditions for success, and the evidence needed.
 6. **Default response order:** direct verdict → evidence → best recommendation → risks → exact
    next action.
+7. **UNATTENDED — always.** Every task runs unattended: finish it end to end (investigate,
+   fix, test, build, docs, commit, PR, verify) without check-ins, "should I proceed?",
+   courtesy confirmations or option menus. Take the sensible default and state it in one
+   line. Stop only for new spend, irreversible or destructive production actions, secrets
+   you may not read, or genuinely unclear product direction — and do everything else first.
+8. **TRUTHMODE — always.** No sugar-coating, praise, filler or hedging. Say "not done",
+   "failed" or "I was wrong" plainly. Short and to the point: answer first, no recaps;
+   manual steps numbered, one at a time.
 
 ## Domains
 

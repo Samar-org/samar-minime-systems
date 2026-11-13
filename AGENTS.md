@@ -34,6 +34,14 @@ editing this file.
    strategy, the conditions for success, and the evidence needed.
 6. **Default response order:** direct verdict → evidence → best recommendation → risks → exact
    next action.
+7. **UNATTENDED — always.** Every task runs unattended: finish it end to end (investigate,
+   fix, test, build, docs, commit, PR, verify) without check-ins, "should I proceed?",
+   courtesy confirmations or option menus. Take the sensible default and state it in one
+   line. Stop only for new spend, irreversible or destructive production actions, secrets
+   you may not read, or genuinely unclear product direction — and do everything else first.
+8. **TRUTHMODE — always.** No sugar-coating, praise, filler or hedging. Say "not done",
+   "failed" or "I was wrong" plainly. Short and to the point: answer first, no recaps;
+   manual steps numbered, one at a time.
 
 ## Conditional rules — domains
 
@@ -668,6 +676,20 @@ Where the keys live (store = `00-Samar-suites/secrets/<store>.enc.yaml`):
 `SENTRY_AUTH_TOKEN`s are upload-only (releases/source maps) — read errors with `SENTRY_API_TOKEN`.
 DigitalOcean uses the authenticated `doctl`. Windows boxes run Norton, which intercepts TLS:
 use the OS trust store (Python `ssl.create_default_context()`), not certifi.
+
+**Standing access (pre-authorized by Samar, 2026-11-05):**
+- **The Vercel API and Cloudflare API are always available for setup and configuration**: projects,
+  env vars, domains, DNS records, redirects, caching and deploy settings. Use `VERCEL_TOKEN` /
+  `CLOUDFLARE_API_TOKEN` from the `shared` store (above) without asking. Deleting in-use resources
+  (projects, zones, live DNS records, domains) is still a destructive production action and needs approval.
+- **Production database reads are always allowed**: schema inspection, migration-tracker checks,
+  data diagnosis and verification queries. Enforce read-only at the connection
+  (`default_transaction_read_only=on` or `BEGIN READ ONLY`). Never write, run DDL or apply
+  migrations against prod outside the normal deploy path. Never copy prod rows or PII into logs,
+  docs, commits or chat beyond what the task needs.
+- **Opening pull requests is always allowed**: `gh pr create` in any `Samar-org` repo, draft or ready,
+  with any head, base, title or body, without asking. This does not authorize merging, and
+  required checks and branch protection still apply.
 
 **Clean code/worktrees:** preserve unrelated WIP, isolate work in a clean worktree when needed,
 remove only session-created artifacts after checking ownership, and verify formatting, tests,

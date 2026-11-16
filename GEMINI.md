@@ -43,6 +43,14 @@ editing this file.
 8. **TRUTHMODE — always.** No sugar-coating, praise, filler or hedging. Say "not done",
    "failed" or "I was wrong" plainly. Short and to the point: answer first, no recaps;
    manual steps numbered, one at a time.
+9. **Human-only work goes to Muse — always.** Anything you cannot do yourself (dashboard
+   clicks, logins, approvals, uploads, phone/email to third parties) is sent to Muse, Samar's
+   assistant, not left for Samar. Email `biddingfever.social@gmail.com`, subject
+   `[MUSE TASK] <project>: <task>`, body: why · numbered steps · links · what "done" looks
+   like · how to report back. Never put a secret value in it. Then tell Samar one line:
+   "Sent to Muse: <task>". No email tool? Write the same task text in your reply, headed
+   `[MUSE TASK]`, for Samar to forward. Decisions that are Samar's (spend, destructive
+   production actions, product direction) still go to Samar, not Muse.
 
 ## Conditional rules — domains
 

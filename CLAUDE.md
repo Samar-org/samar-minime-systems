@@ -60,3 +60,7 @@
 - Punch list: `PUNCH_LIST.md`
 - Root overview: `README.md`
 - Headquarters functional/technical specs: `Samar-org/callcenter/docs/specs/`
+
+## Skills library
+
+All agents working in this repo follow Samar's skills library: the private repo Samar-org/samar-skills holds the methods, APIs and rules for her work, including the 4MORE White-Glove Development methodology and the Samar Communication rules. Read the relevant skill there before starting work and treat it as part of these instructions.
